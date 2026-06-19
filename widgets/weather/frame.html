@@ -1,0 +1,51 @@
+<section class="weather weather--###layout###" data-weather-location="###location_id###" data-weather-count="###count###">
+	[if '###render_current###'=='1']
+	<div class="weather__current">
+		###current###
+	</div>
+	[/if]
+	[if '###render_forecast###'=='1']
+	<div class="weather__forecast">
+		###forecast###
+	</div>
+	[/if]
+</section>
+
+[repeat=current]
+<article class="weather__item weather__item--current">
+	[if '###has_icon###'=='1']
+	<img class="weather__icon" src="###icon_url###" alt="###description###" width="64" height="64" loading="lazy">
+	[/if]
+	<div class="weather__body">
+		<strong class="weather__temp">###temp_now######temp_unit###</strong>
+		[if '###render_description###'=='1']
+		<span class="weather__description">###description###</span>
+		[/if]
+		<span class="weather__range">###temp_min######temp_unit### / ###temp_max######temp_unit###</span>
+		<div class="weather__meta">
+			[if '###render_rain_probability###'=='1']<span>###pop###%</span>[/if]
+			[if '###render_wind###'=='1']<span>###wind_speed### ###wind_unit###</span>[/if]
+			[if '###render_humidity###'=='1']<span>###humidity###%</span>[/if]
+		</div>
+	</div>
+</article>
+[/repeat]
+
+[repeat=forecast]
+<article class="weather__item">
+	<time class="weather__date" datetime="###datetime###">###date_label###</time>
+	[if '###has_icon###'=='1']
+	<img class="weather__icon" src="###icon_url###" alt="###description###" width="48" height="48" loading="lazy">
+	[/if]
+	<strong class="weather__temp">###temp######temp_unit###</strong>
+	[if '###render_description###'=='1']
+	<span class="weather__description">###description###</span>
+	[/if]
+	<span class="weather__range">###temp_min######temp_unit### / ###temp_max######temp_unit###</span>
+	<div class="weather__meta">
+		[if '###render_rain_probability###'=='1']<span>###pop###%</span>[/if]
+		[if '###render_wind###'=='1']<span>###wind_speed### ###wind_unit###</span>[/if]
+		[if '###render_humidity###'=='1']<span>###humidity###%</span>[/if]
+	</div>
+</article>
+[/repeat]

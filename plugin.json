@@ -1,0 +1,13 @@
+{
+  "id": "fiCMS-weather",
+  "name": "fiCMS Weather",
+  "type": "thirdparty",
+  "system": false,
+  "description": "Adds admin-managed weather locations and an OpenWeather-powered frontend weather widget.",
+  "version": "1.0.0",
+  "autoload": {
+    "psr-4": {
+      "weather\\": "src/"
+    }
+  }
+}
