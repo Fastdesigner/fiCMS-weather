@@ -15,18 +15,9 @@ $weather = [
 	'locations'=>[],
 	'location'=>[],
 	'items'=>[],
-	'unit_options'=>[
-		['value'=>'metric','name'=>language__get($user['language'],'_weather_units_metric')],
-		['value'=>'imperial','name'=>language__get($user['language'],'_weather_units_imperial')],
-		['value'=>'standard','name'=>language__get($user['language'],'_weather_units_standard')]
-	],
-	'cache_options'=>[
-		['value'=>30,'name'=>language__get($user['language'],'_weather_cache_30')],
-		['value'=>60,'name'=>language__get($user['language'],'_weather_cache_60')],
-		['value'=>120,'name'=>language__get($user['language'],'_weather_cache_120')],
-		['value'=>240,'name'=>language__get($user['language'],'_weather_cache_240')],
-		['value'=>720,'name'=>language__get($user['language'],'_weather_cache_720')]
-	]
+	'details'=>[],
+	'icon_items'=>[],
+	'icon_form'=>[]
 ];
 
 $weather['config'] = $weather['entry']->getConfig();
@@ -68,26 +59,27 @@ if (isset($_POST['settings'],$_POST['type'],$_POST['action']) && $_POST['type'] 
 		$_POST['handled'] = true;
 	}
 
+	if (!isset($_POST['handled']) && $weather['action'] == 'save_icons') {
+		$weather['output']['result'] = $weather['entry']->saveIconUploads($_POST);
+		$_POST['handled'] = true;
+	}
+
 	if (!isset($_POST['handled']) && $weather['action'] == 'load') {
 		$weather['location'] = $weather['id'] == 'new' ? $weather['entry']->blankLocation('new') : $weather['entry']->location($weather['id']);
 		$weather['formitems'] = create__form_items([
 			'location_active'=>['type'=>'checkbox'],
-			'location_id'=>['required'=>true,'attributes'=>['pattern'=>'[a-zA-Z0-9_-]+']],
 			'location_label'=>['required'=>true],
 			'location_lat'=>['required'=>true,'attributes'=>['inputmode'=>'decimal']],
-			'location_lon'=>['required'=>true,'attributes'=>['inputmode'=>'decimal']],
-			'location_forecast_days'=>['type'=>'number','attributes'=>['min'=>1,'max'=>8]]
+			'location_lon'=>['required'=>true,'attributes'=>['inputmode'=>'decimal']]
 		],[
 			'location_active'=>$weather['location']['active'],
-			'location_id'=>$weather['location']['id'] == 'new' ? '' : $weather['location']['id'],
 			'location_label'=>$weather['location']['label'],
 			'location_lat'=>$weather['location']['lat'],
-			'location_lon'=>$weather['location']['lon'],
-			'location_forecast_days'=>$weather['location']['forecast_days']
+			'location_lon'=>$weather['location']['lon']
 		],'weather',$user['language']);
 		$weather['formitems']['location_active']['checked'] = intval($weather['location']['active']) == 1;
 		$weather['form'] = [];
-		foreach (['location_active','location_id','location_label','location_lat','location_lon','location_forecast_days'] as $weather['field']) $weather['form'][] = ['id'=>$settings['key'].'-form-'.$weather['field'],'type'=>'form','classes'=>['forms__item'],'form'=>$weather['formitems'][$weather['field']]];
+		foreach (['location_active','location_label','location_lat','location_lon'] as $weather['field']) $weather['form'][] = ['id'=>$settings['key'].'-form-'.$weather['field'],'type'=>'form','classes'=>['forms__item'],'form'=>$weather['formitems'][$weather['field']]];
 		$weather['output']['lists'] = create__form($settings['form'],$weather['form'],$weather['id'] == 'new' ? language__get($user['language'],'_weather_location_new') : language__get_parsed($user['language'],'_weather_location_edit',['label'=>$weather['location']['label']]),language__get($user['language'],'_settings_form_save'),['load'=>['action'=>'save_location','id'=>$weather['location']['id']]]);
 		$weather['output']['result'] = ['result'=>true];
 		$_POST['handled'] = true;
@@ -100,37 +92,65 @@ $weather['locations'] = $weather['entry']->locations($weather['config']);
 
 $weather['entries']['settings'][] = [
 	'id'=>$settings['key'].'-service-status',
-	'tag'=>'ul',
-	'classes'=>['system-list'],
-	'items'=>[
-		['id'=>$settings['key'].'-service-active','description'=>language__get($user['language'],'_weather_service_status'),'subtitle'=>language__get($user['language'],$weather['status']['active'] == 1 ? '_active' : '_inactive')],
-		['id'=>$settings['key'].'-service-key','description'=>language__get($user['language'],'_weather_service_key'),'subtitle'=>language__get($user['language'],$weather['status']['has_key'] == 1 ? '_weather_service_key_available' : '_weather_service_key_missing')]
-	]
+	'description'=>language__get($user['language'],'_weather_service_status'),
+	'subtitle'=>language__get($user['language'],$weather['status']['active'] == 1 ? '_active' : '_inactive').' · '.language__get($user['language'],$weather['status']['has_key'] == 1 ? '_weather_service_key_available' : '_weather_service_key_missing'),
+	'image'=>$weather['entry']->iconUrl('01d'),
+	'classes'=>['system-highlight']
 ];
-$weather['entries']['settings'][] = ['id'=>$settings['key'].'-active','type'=>'form','classes'=>['forms__item'],'form'=>['type'=>'checkbox','option'=>'active','name'=>language__get($user['language'],'_weather_active'),'checked'=>$weather['config']['active'] == 1,'change'=>['function'=>'settings__update'],'attributes'=>['data-default'=>1]]];
-$weather['entries']['settings'][] = ['id'=>$settings['key'].'-units','type'=>'form','classes'=>['forms__item'],'form'=>['type'=>'select','option'=>'units','name'=>language__get($user['language'],'_weather_units'),'value'=>$weather['config']['units'],'options'=>$weather['unit_options'],'change'=>['function'=>'settings__update']]];
-$weather['entries']['settings'][] = ['id'=>$settings['key'].'-cache','type'=>'form','classes'=>['forms__item'],'form'=>['type'=>'select','option'=>'cache_minutes','name'=>language__get($user['language'],'_weather_cache_minutes'),'value'=>$weather['config']['cache_minutes'],'options'=>$weather['cache_options'],'change'=>['function'=>'settings__update']]];
-$weather['entries']['settings'][] = ['id'=>$settings['key'].'-forecast-days','type'=>'form','classes'=>['forms__item'],'form'=>['type'=>'number','option'=>'forecast_days','name'=>language__get($user['language'],'_weather_forecast_days'),'value'=>$weather['config']['forecast_days'],'attributes'=>['min'=>1,'max'=>8],'change'=>['function'=>'settings__update']]];
+$weather['entries']['settings'][] = ['id'=>$settings['key'].'-cache','type'=>'form','classes'=>['forms__item'],'form'=>['type'=>'number','option'=>'cache_hours','name'=>language__get($user['language'],'_weather_cache_hours'),'value'=>max(1,intval(round($weather['config']['cache_minutes'] / 60))),'attributes'=>['min'=>1,'max'=>24,'step'=>1,'inputmode'=>'numeric'],'change'=>['function'=>'settings__update']]];
+
+foreach ($weather['entry']->iconCodes() as $weather['icon']) {
+	$weather['icon_items'][] = [
+		'id'=>$settings['key'].'-icon-'.$weather['icon'],
+		'type'=>'form',
+		'classes'=>['forms__item'],
+		'icons'=>[['id'=>$settings['key'].'-icon-'.$weather['icon'].'-preview','image'=>$weather['entry']->iconUrl($weather['icon'])]],
+		'form'=>['type'=>'file','option'=>'icon_'.$weather['icon'],'name'=>strtoupper($weather['icon']),'attributes'=>['accept'=>'image/*,.svg']]
+	];
+}
+$weather['icon_form'] = array_values(create__form($settings['form'].'-icons',$weather['icon_items'],false,language__get($user['language'],'_settings_form_save'),['load'=>['action'=>'save_icons','id'=>'icons']]));
+$weather['entries']['settings'][] = create__dropdown($settings['key'].'-icons',language__get($user['language'],'_weather_icons_title'),$weather['icon_form'],['subtitle'=>language__get($user['language'],'_weather_icons_subtitle'),'attributes'=>['data-details-independent'=>'true'],'image'=>$weather['entry']->iconUrl('02d'),'list'=>false]);
 
 foreach ($weather['locations'] as $weather['location']) {
+	$weather['preview'] = $weather['entry']->preview($weather['location']['id']);
+	$weather['current'] = $weather['preview']['current'];
 	$weather['subtitle'] = [];
+	$weather['details'] = [];
+	$weather['subtitle'][] = language__get($user['language'],$weather['location']['active'] == 1 ? '_active' : '_inactive');
+	if (!empty($weather['current'])) $weather['subtitle'][] = htmlspecialchars((string) ($weather['current']['temp_now'] ?? $weather['current']['temp'] ?? ''),ENT_QUOTES,'UTF-8').' '.(($weather['current']['units'] ?? '') == 'imperial' ? '°F' : '°C');
 	if ($weather['location']['last_success'] > 0) $weather['subtitle'][] = language__get($user['language'],'_weather_last_success').': '.format__date_relative($weather['location']['last_success'],'relative',$user['language'],true);
 	if ($weather['location']['last_error'] != '') $weather['subtitle'][] = language__get($user['language'],'_weather_last_error').': '.htmlspecialchars($weather['location']['last_error'],ENT_QUOTES,'UTF-8');
-	if (empty($weather['subtitle'])) $weather['subtitle'][] = language__get($user['language'],'_weather_never_synced');
+	if (count($weather['subtitle']) == 1) $weather['subtitle'][] = language__get($user['language'],'_weather_never_synced');
+	if (!empty($weather['current'])) {
+		$weather['details'][] = [
+			'id'=>$settings['key'].'-location-'.$weather['location']['id'].'-current',
+			'description'=>language__get($user['language'],'_weather_current_weather'),
+			'subtitle'=>htmlspecialchars(trim(($weather['current']['description'] ?? '').' · '.($weather['current']['temp_min'] ?? '').' / '.($weather['current']['temp_max'] ?? '').' °'.(($weather['current']['units'] ?? '') == 'imperial' ? 'F' : 'C')),ENT_QUOTES,'UTF-8'),
+			'image'=>$weather['entry']->iconUrl($weather['current']['icon'] ?? '01d')
+		];
+	}
+	$weather['details'][] = ['id'=>$settings['key'].'-location-'.$weather['location']['id'].'-coordinates','description'=>language__get($user['language'],'_weather_coordinates'),'subtitle'=>htmlspecialchars($weather['location']['lat'].', '.$weather['location']['lon'],ENT_QUOTES,'UTF-8')];
+	$weather['details'][] = ['id'=>$settings['key'].'-location-'.$weather['location']['id'].'-default','description'=>language__get($user['language'],'_weather_default_location'),'subtitle'=>language__get($user['language'],$weather['config']['default_location'] == $weather['location']['id'] ? '_option_yes' : '_option_no')];
+	$weather['details'][] = ['id'=>$settings['key'].'-location-'.$weather['location']['id'].'-edit','description'=>language__get($user['language'],'_weather_location_edit_action'),'actions'=>['load'=>['id'=>'location-'.$weather['location']['id'],'form'=>true]]];
 	$weather['items'][] = [
 		'id'=>$settings['key'].'-location-'.$weather['location']['id'],
 		'tag'=>'li',
-		'description'=>$weather['location']['label'] != '' ? $weather['location']['label'] : $weather['location']['id'],
-		'subtitle'=>implode(' · ',$weather['subtitle']),
-		'icons'=>$weather['config']['default_location'] == $weather['location']['id'] ? [['id'=>$settings['key'].'-'.$weather['location']['id'].'-default','attributes'=>['data-systemicon'=>'check']]] : [],
-		'actions'=>[
-			'load'=>['id'=>'location-'.$weather['location']['id'],'form'=>true],
-			'ac'=>['id'=>'location-'.$weather['location']['id'],'action'=>'ac','name'=>$settings['key'].'-location-'.$weather['location']['id'],'checked'=>$weather['location']['active'] == 1],
-			'delete'=>['id'=>'location-'.$weather['location']['id']],
-			'icons'=>[
-				'sync'=>['id'=>'location-'.$weather['location']['id'],'action'=>'sync','systemicon'=>'sync','title'=>language__get($user['language'],'_weather_sync')],
-				'default'=>['id'=>'location-'.$weather['location']['id'],'action'=>'default_location','systemicon'=>'check','title'=>language__get($user['language'],'_weather_set_default')]
+		'items'=>[
+			create__dropdown($settings['key'].'-location-'.$weather['location']['id'].'-dropdown',$weather['location']['label'] != '' ? $weather['location']['label'] : $weather['location']['id'],create__list($settings['key'].'-location-'.$weather['location']['id'].'-list',$weather['details'],['clear'=>true]),[
+				'subtitle'=>implode(' · ',$weather['subtitle']),
+				'image'=>$weather['entry']->iconUrl($weather['current']['icon'] ?? '01d'),
+				'attributes'=>['data-details-independent'=>'true'],
+				'icons'=>$weather['config']['default_location'] == $weather['location']['id'] ? [['id'=>$settings['key'].'-'.$weather['location']['id'].'-default','attributes'=>['data-systemicon'=>'check']]] : [],
+				'actions'=>[
+					'ac'=>['id'=>'location-'.$weather['location']['id'],'action'=>'ac','name'=>$settings['key'].'-location-'.$weather['location']['id'],'checked'=>$weather['location']['active'] == 1],
+					'delete'=>['id'=>'location-'.$weather['location']['id']],
+					'icons'=>[
+						'sync'=>['id'=>'location-'.$weather['location']['id'],'action'=>'sync','systemicon'=>'sync','title'=>language__get($user['language'],'_weather_sync')],
+						'default'=>['id'=>'location-'.$weather['location']['id'],'action'=>'default_location','systemicon'=>'check','title'=>language__get($user['language'],'_weather_set_default')]
+					]
+				]
 			]
+			)
 		]
 	];
 }

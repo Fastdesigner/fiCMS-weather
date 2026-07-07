@@ -7,7 +7,10 @@ fiCMS Weather manages multiple weather locations in the admin settings and rende
 - OpenWeather One Call 3.0 provider
 - TaskManager-managed API key support
 - Multiple admin-managed locations
+- Location ids generated from the location name
 - Per-location cache files
+- Plugin weather icon set with per-icon custom overrides
+- Visitor-dependent metric/imperial output
 - Forecast widget with configurable location, layout, days and visible metrics
 - Cron refresh for active locations
 

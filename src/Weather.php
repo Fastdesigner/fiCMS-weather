@@ -8,6 +8,7 @@ class Weather {
 	private string $basePath = '';
 	private string $configFile = '';
 	private string $cacheDir = '';
+	private array $iconCodes = ['01d','01n','02d','02n','03d','03n','04d','04n','09d','09n','10d','10n','11d','11n','13d','13n','50d','50n'];
 	private array $configDefaults = [
 		'config_version'=>1,
 		'active'=>1,
@@ -35,6 +36,55 @@ class Weather {
 		return $locationId === '' ? '' : $this->cacheDir.'/'.$locationId.'.json';
 	}
 
+	public function iconCodes(): array {
+		return $this->iconCodes;
+	}
+
+	public function iconUrl(string $icon = ''): string {
+		$icon = preg_replace('/[^a-z0-9]/i','',trim($icon));
+		if ($icon === '') $icon = '01d';
+		foreach (['custom/',''] as $folder) {
+			foreach (['png','webp','svg','gif','jpg','jpeg'] as $extension) {
+				if (!is_file($this->basePath.'/assets/images/weather/'.$folder.$icon.'.'.$extension)) continue;
+				return (defined('PAGEPATH') ? PAGEPATH.'/' : '').'system/plugins/'.basename($this->basePath).'/assets/images/weather/'.$folder.$icon.'.'.$extension;
+			}
+		}
+		return $icon !== '' ? 'https://openweathermap.org/img/wn/'.$icon.'@2x.png' : '';
+	}
+
+	public function preview(string $locationId): array {
+		$location = $this->location($locationId);
+		$cache = $this->readCache($location['id'] ?? '');
+		$data = is_array($cache['data'] ?? null) ? $this->convertForecast($cache['data'],$this->visitorUnits()) : [];
+		if (isset($data['current']) && is_array($data['current'])) $data['current']['units'] = $data['units'] ?? 'metric';
+		return [
+			'location'=>$location,
+			'updated_at'=>intval($cache['updated_at'] ?? 0),
+			'current'=>is_array($data['current'] ?? null) ? $data['current'] : [],
+			'daily'=>is_array($data['daily'] ?? null) ? $data['daily'] : []
+		];
+	}
+
+	public function saveIconUploads(array $post = []): array {
+		$result = ['result'=>true,'uploaded'=>0];
+		foreach ($this->iconCodes as $icon) {
+			$value = trim((string) ($post['icon_'.$icon] ?? ''));
+			if ($value === '') continue;
+			$uploads = array_values(array_filter(array_map('trim',explode(',',$value))));
+			if (empty($uploads)) continue;
+			$parts = explode('|',$uploads[0],2);
+			$delete = trim((string) ($parts[1] ?? ''));
+			if ($delete === '' || empty($_SESSION['uploads'][$delete]) || !is_file($_SESSION['uploads'][$delete])) continue;
+			$extension = strtolower(pathinfo($_SESSION['uploads'][$delete],PATHINFO_EXTENSION));
+			if (!in_array($extension,['png','webp','svg','gif','jpg','jpeg'],true)) continue;
+			foreach (glob($this->basePath.'/assets/images/weather/custom/'.$icon.'.{png,webp,svg,gif,jpg,jpeg}',GLOB_BRACE) ?: [] as $file) $this->deleteFile($file,false);
+			$file = file_get_contents($_SESSION['uploads'][$delete]);
+			if (!is_string($file) || $this->write($this->basePath.'/assets/images/weather/custom/'.$icon.'.'.$extension,$file) === false) $result['result'] = false;
+			else $result['uploaded']++;
+		}
+		return $result;
+	}
+
 	public function getConfig(): array {
 		$config = $this->configDefaults;
 		if (is_file($this->configFile)) {
@@ -45,7 +95,7 @@ class Weather {
 	}
 
 	public function saveConfig(array $config = []): bool {
-		return $this->write($this->configFile,$this->normalizeConfig(array_replace_recursive($this->configDefaults,$config)));
+		return $this->write($this->configFile,$this->normalizeConfig(array_replace_recursive($this->configDefaults,$config)),true);
 	}
 
 	public function serviceStatus(): array {
@@ -100,15 +150,14 @@ class Weather {
 	public function saveLocationFromPost(string $id, array $post = []): array {
 		$config = $this->getConfig();
 		$original = $this->validId($id) ? trim($id) : '';
-		$saveId = $this->validId($post['location_id'] ?? '') ? trim((string) $post['location_id']) : $original;
+		$saveId = $original;
 		if ($saveId === '' || $saveId === 'new') $saveId = $this->createLocationId($post['location_label'] ?? 'location',$config);
 		$entry = array_merge($this->blankLocation($saveId),[
 			'id'=>$saveId,
 			'active'=>!empty($post['location_active']) ? 1 : 0,
 			'label'=>trim((string) ($post['location_label'] ?? '')),
 			'lat'=>trim((string) ($post['location_lat'] ?? '')),
-			'lon'=>trim((string) ($post['location_lon'] ?? '')),
-			'forecast_days'=>max(1,min(8,intval($post['location_forecast_days'] ?? $config['forecast_days'])))
+			'lon'=>trim((string) ($post['location_lon'] ?? ''))
 		]);
 		foreach ($config['locations'] as $key => $location) {
 			if (($location['id'] ?? '') !== $original && ($location['id'] ?? '') !== $saveId) continue;
@@ -155,6 +204,10 @@ class Weather {
 
 	public function updateSetting(string $name, mixed $value): bool {
 		$config = $this->getConfig();
+		if ($name === 'cache_hours') {
+			$config['cache_minutes'] = max(1,min(24,intval($value))) * 60;
+			return $this->saveConfig($config);
+		}
 		if (!array_key_exists($name,$config) || in_array($name,['locations','default_location'],true)) return false;
 		$config[$name] = match ($name) {
 			'active' => intval($value) === 1 ? 1 : 0,
@@ -168,7 +221,6 @@ class Weather {
 
 	public function forecast(string $locationId = '', array $options = []): array {
 		$config = $this->getConfig();
-		if ($config['active'] !== 1) return ['result'=>false,'error'=>'plugin_inactive','location'=>[],'current'=>[],'daily'=>[],'alerts'=>[]];
 		$location = $this->location($locationId,$config);
 		if (($location['id'] ?? '') === '' || ($location['id'] ?? '') === 'new') return ['result'=>false,'error'=>'location_missing','location'=>[],'current'=>[],'daily'=>[],'alerts'=>[]];
 		if (intval($location['active'] ?? 0) !== 1 && empty($options['force'])) return ['result'=>false,'error'=>'location_inactive','location'=>$location,'current'=>[],'daily'=>[],'alerts'=>[]];
@@ -184,7 +236,6 @@ class Weather {
 
 	public function forecastCustom(array $location = [], array $options = []): array {
 		$config = $this->getConfig();
-		if ($config['active'] !== 1) return ['result'=>false,'error'=>'plugin_inactive','location'=>[],'current'=>[],'daily'=>[],'alerts'=>[]];
 		$location = $this->normalizeLocation(array_merge([
 			'id'=>'custom-'.str_replace(['.','-'],['_','m'],trim((string) ($location['lat'] ?? ''))).'-'.str_replace(['.','-'],['_','m'],trim((string) ($location['lon'] ?? ''))),
 			'active'=>1,
@@ -201,7 +252,7 @@ class Weather {
 
 		$service = $this->serviceConfig();
 		$provider = new OpenWeather();
-		$result = $provider->fetch($location,['key'=>trim((string) ($service['key'] ?? '')),'units'=>$config['units'],'language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
+		$result = $provider->fetch($location,['key'=>trim((string) ($service['key'] ?? '')),'units'=>'metric','language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
 		if (!empty($result['result']) && is_array($result['data'] ?? null)) {
 			$this->write($this->cacheFile($location['id']),['updated_at'=>intval($_SERVER['now'] ?? time()),'code'=>intval($result['code'] ?? 0),'data'=>$result['data']]);
 			return $this->limitForecast($result['data'],$location,$options,$config);
@@ -218,7 +269,7 @@ class Weather {
 		$service = $this->serviceConfig();
 		$key = trim((string) ($service['key'] ?? ''));
 		$provider = new OpenWeather();
-		$result = $provider->fetch($location,['key'=>$key,'units'=>$config['units'],'language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
+		$result = $provider->fetch($location,['key'=>$key,'units'=>'metric','language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
 		return $this->finishLocationSync($location,$result);
 	}
 
@@ -249,7 +300,8 @@ class Weather {
 	}
 
 	private function limitForecast(array $data, array $location, array $options, array $config): array {
-		$days = max(1,min(8,intval($options['days'] ?? ($location['forecast_days'] ?: $config['forecast_days']))));
+		$days = max(1,min(8,intval($options['days'] ?? $config['forecast_days'])));
+		$data = $this->convertForecast($data,in_array(($options['units'] ?? ''),['metric','imperial'],true) ? $options['units'] : $this->visitorUnits());
 		$data['result'] = true;
 		$data['location'] = array_merge($location,is_array($data['location'] ?? null) ? $data['location'] : []);
 		$data['daily'] = array_slice(is_array($data['daily'] ?? null) ? $data['daily'] : [],0,$days);
@@ -274,10 +326,7 @@ class Weather {
 
 	private function deleteCache(string $locationId): void {
 		$file = $this->cacheFile($locationId);
-		if ($file !== '' && is_file($file)) {
-			if (function_exists('helper__files_delete')) helper__files_delete($file,false);
-			else @unlink($file);
-		}
+		$this->deleteFile($file,false);
 	}
 
 	private function serviceConfig(): array {
@@ -338,10 +387,65 @@ class Weather {
 		return json_last_error() === JSON_ERROR_NONE ? $data : null;
 	}
 
-	private function write(string $file, array $data): bool {
+	private function visitorUnits(): string {
+		foreach ([$_SESSION['weather_units'] ?? null,$_COOKIE['weather_units'] ?? null,$GLOBALS['user']['weather_units'] ?? null] as $unit) if (in_array($unit,['metric','imperial'],true)) return $unit;
+		foreach (['HTTP_CF_IPCOUNTRY','GEOIP_COUNTRY_CODE','HTTP_X_COUNTRY_CODE'] as $key) {
+			$country = strtoupper(trim((string) ($_SERVER[$key] ?? '')));
+			if (in_array($country,['US','LR','MM'],true)) return 'imperial';
+		}
+		$language = strtolower(str_replace('_','-',trim((string) ($_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? '')))));
+		return $language === 'en-us' ? 'imperial' : 'metric';
+	}
+
+	private function convertForecast(array $data, string $target): array {
+		$source = in_array(($data['units'] ?? 'metric'),['metric','imperial','standard'],true) ? $data['units'] : 'metric';
+		$target = in_array($target,['metric','imperial'],true) ? $target : 'metric';
+		if ($source === $target) return $data;
+		if (isset($data['current']) && is_array($data['current'])) $data['current'] = $this->convertRow($data['current'],$source,$target);
+		if (isset($data['daily']) && is_array($data['daily'])) foreach ($data['daily'] as $key => $row) if (is_array($row)) $data['daily'][$key] = $this->convertRow($row,$source,$target);
+		$data['units'] = $target;
+		return $data;
+	}
+
+	private function convertRow(array $row, string $source, string $target): array {
+		foreach (['temp','temp_now','temp_min','temp_max','feels_like'] as $key) if (isset($row[$key]) && is_numeric($row[$key])) $row[$key] = $this->convertTemperature(floatval($row[$key]),$source,$target);
+		foreach (['wind_speed','wind_gust'] as $key) if (isset($row[$key]) && is_numeric($row[$key])) $row[$key] = $this->convertWind(floatval($row[$key]),$source,$target);
+		return $row;
+	}
+
+	private function convertTemperature(float $value, string $source, string $target): int {
+		if ($source === 'imperial') $value = ($value - 32) * 5 / 9;
+		elseif ($source === 'standard') $value -= 273.15;
+		if ($target === 'imperial') $value = $value * 9 / 5 + 32;
+		return intval(round($value));
+	}
+
+	private function convertWind(float $value, string $source, string $target): float {
+		if ($source === 'imperial') $value /= 2.2369362921;
+		if ($target === 'imperial') $value *= 2.2369362921;
+		return round($value,1);
+	}
+
+	private function deleteFile(string $file, bool $checkIfEmpty = true): bool {
+		if ($file === '' || !is_file($file)) return false;
+		$relative = $this->relativePath($file);
+		if ($relative !== '' && function_exists('helper__files_delete')) return helper__files_delete($relative,$checkIfEmpty);
+		return @unlink($file);
+	}
+
+	private function relativePath(string $file): string {
+		$file = str_replace('\\','/',$file);
+		$root = str_replace('\\','/',getcwd() ?: '');
+		if ($root !== '' && str_starts_with($file,$root.'/')) return substr($file,strlen($root) + 1);
+		return $file !== '' && $file[0] !== '/' && !preg_match('/^[a-zA-Z]:[\/\\\\]/',$file) ? $file : '';
+	}
+
+	private function write(string $file, array|string $data, bool $secure = false): bool {
 		if ($file === '') return false;
-		if (function_exists('helper__files_write')) return helper__files_write($file,$data,true,true);
+		$relative = $this->relativePath($file);
+		if ($relative !== '' && function_exists('helper__files_write')) return helper__files_write($relative,$data,true,$secure);
 		if (!is_dir(dirname($file))) mkdir(dirname($file),0775,true);
-		return file_put_contents($file,json_encode($data,JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)) !== false;
+		if (is_array($data)) $data = json_encode($data,JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+		return file_put_contents($file,$data) !== false;
 	}
 }

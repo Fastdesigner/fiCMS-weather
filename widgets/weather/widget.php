@@ -5,7 +5,7 @@ if (!$site['onsite']) return;
 require_once dirname(__DIR__,2).'/src/Weather.php';
 
 if (!function_exists('weather__widget_row')) {
-	function weather__widget_row(array $row, array $options, array $units, bool $current): array {
+	function weather__widget_row(array $row, array $options, array $units, bool $current, \weather\Weather $entry): array {
 		$icon = preg_replace('/[^a-z0-9]/i','',trim((string) ($row['icon'] ?? '')));
 		$date = intval($row['date'] ?? ($_SERVER['now'] ?? time()));
 		return [
@@ -23,7 +23,7 @@ if (!function_exists('weather__widget_row')) {
 			'pop'=>htmlspecialchars((string) ($row['pop'] ?? 0),ENT_QUOTES,'UTF-8'),
 			'description'=>htmlspecialchars(trim((string) ($row['description'] ?? '')),ENT_QUOTES,'UTF-8'),
 			'icon'=>$icon,
-			'icon_url'=>$icon !== '' ? 'https://openweathermap.org/img/wn/'.$icon.'@2x.png' : '',
+			'icon_url'=>$icon !== '' ? $entry->iconUrl($icon) : '',
 			'has_icon'=>$icon !== '' ? 1 : 0,
 			'is_current'=>$current ? 1 : 0,
 			'render_description'=>$options['show_description'],
@@ -110,12 +110,12 @@ $weather['replace']['render_current'] = $weather['options']['show_current'];
 $weather['replace']['render_forecast'] = $weather['options']['show_forecast'];
 
 if ($weather['options']['show_current'] == 1 && !empty($weather['data']['current'])) {
-	$weather['current'][] = parser__replace($weather['structure']['current']['inner'],weather__widget_row($weather['data']['current'],$weather['options'],$weather['units'],true));
+	$weather['current'][] = parser__replace($weather['structure']['current']['inner'],weather__widget_row($weather['data']['current'],$weather['options'],$weather['units'],true,$weather['entry']));
 }
 
 foreach (($weather['data']['daily'] ?? []) as $weather['key'] => $weather['row']) {
 	if ($weather['key'] === 0 && $weather['options']['show_current'] == 1) continue;
-	$weather['forecast'][] = parser__replace($weather['structure']['forecast']['inner'],weather__widget_row($weather['row'],$weather['options'],$weather['units'],false));
+	$weather['forecast'][] = parser__replace($weather['structure']['forecast']['inner'],weather__widget_row($weather['row'],$weather['options'],$weather['units'],false,$weather['entry']));
 }
 
 $weather['replace']['current'] = implode('',$weather['current']);
