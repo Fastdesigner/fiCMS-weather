@@ -65,24 +65,16 @@ class Weather {
 		];
 	}
 
-	public function saveIconUploads(array $post = []): array {
-		$result = ['result'=>true,'uploaded'=>0];
-		foreach ($this->iconCodes as $icon) {
-			$value = trim((string) ($post['icon_'.$icon] ?? ''));
-			if ($value === '') continue;
-			$uploads = array_values(array_filter(array_map('trim',explode(',',$value))));
-			if (empty($uploads)) continue;
-			$parts = explode('|',$uploads[0],2);
-			$delete = trim((string) ($parts[1] ?? ''));
-			if ($delete === '' || empty($_SESSION['uploads'][$delete]) || !is_file($_SESSION['uploads'][$delete])) continue;
-			$extension = strtolower(pathinfo($_SESSION['uploads'][$delete],PATHINFO_EXTENSION));
-			if (!in_array($extension,['png','webp','svg','gif','jpg','jpeg'],true)) continue;
-			foreach (glob($this->basePath.'/assets/images/weather/custom/'.$icon.'.{png,webp,svg,gif,jpg,jpeg}',GLOB_BRACE) ?: [] as $file) $this->deleteFile($file,false);
-			$file = file_get_contents($_SESSION['uploads'][$delete]);
-			if (!is_string($file) || $this->write($this->basePath.'/assets/images/weather/custom/'.$icon.'.'.$extension,$file) === false) $result['result'] = false;
-			else $result['uploaded']++;
-		}
-		return $result;
+	public function saveIconMedia(string $name, mixed $value): array {
+		$icon = substr($name,5);
+		if (!in_array($icon,$this->iconCodes,true)) return ['result'=>false];
+		$file = $this->mediaValueFile($value);
+		if ($file === '') return ['result'=>$this->deleteCustomIcon($icon),'deleted'=>1];
+		$extension = strtolower(pathinfo($file,PATHINFO_EXTENSION));
+		if (!in_array($extension,['png','webp','svg','gif','jpg','jpeg'],true)) return ['result'=>false];
+		$this->deleteCustomIcon($icon);
+		$content = file_get_contents($file);
+		return ['result'=>is_string($content) && $this->write($this->basePath.'/assets/images/weather/custom/'.$icon.'.'.$extension,$content),'icon'=>$icon];
 	}
 
 	public function getConfig(): array {
@@ -329,6 +321,12 @@ class Weather {
 		$this->deleteFile($file,false);
 	}
 
+	private function deleteCustomIcon(string $icon): bool {
+		$result = true;
+		foreach (glob($this->basePath.'/assets/images/weather/custom/'.$icon.'.{png,webp,svg,gif,jpg,jpeg}',GLOB_BRACE) ?: [] as $file) if (!$this->deleteFile($file,false)) $result = false;
+		return $result;
+	}
+
 	private function serviceConfig(): array {
 		if (!isset($_SERVER['TaskManager']) && class_exists('\ai\TaskManager')) $_SERVER['TaskManager'] = new \ai\TaskManager();
 		if (isset($_SERVER['TaskManager']) && method_exists($_SERVER['TaskManager'],'getServiceConfig')) return $_SERVER['TaskManager']->getServiceConfig('weather');
@@ -385,6 +383,41 @@ class Weather {
 		if (!is_string($value)) return $value;
 		$data = json_decode($value,true);
 		return json_last_error() === JSON_ERROR_NONE ? $data : null;
+	}
+
+	private function mediaValueFile(mixed $value): string {
+		if (function_exists('images__get_relevant_json')) {
+			$media = images__get_relevant_json($value,false,'or');
+			if (is_array($media)) {
+				foreach (['or','src'] as $key) {
+					$file = $this->publicPathToFile($media[$key] ?? '');
+					if ($file !== '') return $file;
+				}
+			}
+		}
+		$data = function_exists('helper__json_convert') ? helper__json_convert($value) : $this->decode(is_string($value) ? $value : '');
+		if (!is_array($data)) return '';
+		$key = array_key_first($data);
+		if ($key === null || empty($data[$key]['media'][0]['id']) || !function_exists('images__parse_image')) return '';
+		$media = images__parse_image($data[$key]['media'][0]['id']);
+		if (!is_array($media)) return '';
+		foreach (['or','src'] as $key) {
+			$file = $this->publicPathToFile($media[$key] ?? '');
+			if ($file !== '') return $file;
+		}
+		return '';
+	}
+
+	private function publicPathToFile(mixed $path): string {
+		if (!is_string($path) || trim($path) === '') return '';
+		$file = trim(str_replace('\\','/',$path));
+		if (defined('PAGEPATH') && PAGEPATH !== '') {
+			$pagePath = trim(str_replace('\\','/',PAGEPATH),'/');
+			if ($pagePath !== '' && str_starts_with(ltrim($file,'/'),$pagePath.'/')) $file = substr(ltrim($file,'/'),strlen($pagePath) + 1);
+		}
+		if (preg_match('/^https?:\\/\\/[^\\/]+\\/(.+)$/i',$file,$match)) $file = $match[1];
+		$file = ltrim($file,'/');
+		return is_file($file) ? $file : '';
 	}
 
 	private function visitorUnits(): string {
