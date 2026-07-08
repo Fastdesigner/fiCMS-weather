@@ -36,6 +36,7 @@
   "_weather_never_synced": "Non ancora sincronizzato",
   "_weather_current_weather": "Meteo attuale",
   "_weather_coordinates": "Coordinate",
+  "_weather_forecast_preview": "Previsione 5 giorni",
   "_weather_default_location": "Luogo predefinito",
   "_weather_icons_title": "Icone meteo",
   "_weather_icons_subtitle": "Le icone proprie sostituiscono il set predefinito del plugin.",

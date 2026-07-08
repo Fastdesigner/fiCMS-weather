@@ -36,6 +36,7 @@
   "_weather_never_synced": "Aun no sincronizado",
   "_weather_current_weather": "Tiempo actual",
   "_weather_coordinates": "Coordenadas",
+  "_weather_forecast_preview": "Pronostico de 5 dias",
   "_weather_default_location": "Ubicacion por defecto",
   "_weather_icons_title": "Iconos del tiempo",
   "_weather_icons_subtitle": "Los iconos propios sustituyen el conjunto por defecto del plugin.",
