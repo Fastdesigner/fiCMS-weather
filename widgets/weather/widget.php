@@ -73,7 +73,7 @@ if ($weather['structure_file'] == '') {
 }
 
 $weather['structure'] = parser__file($weather['structure_file']);
-foreach (['current','forecast'] as $weather['section']) if (!isset($weather['structure'][$weather['section']]['inner'])) $weather['structure'][$weather['section']] = ['inner'=>''];
+foreach (['current','forecast'] as $weather['section']) if (!isset($weather['structure'][$weather['section']]) || !is_string($weather['structure'][$weather['section']])) $weather['structure'][$weather['section']] = '';
 
 if (isset($weather['block']['option_weather_location'])) $weather['location'] = trim((string) $weather['block']['option_weather_location']);
 if ($weather['location'] == '' && isset($weather['parts'][0]) && !is_numeric($weather['parts'][0])) $weather['location'] = $weather['parts'][0];
@@ -110,12 +110,14 @@ $weather['replace']['render_current'] = $weather['options']['show_current'];
 $weather['replace']['render_forecast'] = $weather['options']['show_forecast'];
 
 if ($weather['options']['show_current'] == 1 && !empty($weather['data']['current'])) {
-	$weather['current'][] = parser__replace($weather['structure']['current']['inner'],weather__widget_row($weather['data']['current'],$weather['options'],$weather['units'],true,$weather['entry']));
+	$weather['row_template'] = $weather['structure']['current'];
+	$weather['current'][] = parser__replace($weather['row_template'],weather__widget_row($weather['data']['current'],$weather['options'],$weather['units'],true,$weather['entry']));
 }
 
 foreach (($weather['data']['daily'] ?? []) as $weather['key'] => $weather['row']) {
 	if ($weather['key'] === 0 && $weather['options']['show_current'] == 1) continue;
-	$weather['forecast'][] = parser__replace($weather['structure']['forecast']['inner'],weather__widget_row($weather['row'],$weather['options'],$weather['units'],false,$weather['entry']));
+	$weather['row_template'] = $weather['structure']['forecast'];
+	$weather['forecast'][] = parser__replace($weather['row_template'],weather__widget_row($weather['row'],$weather['options'],$weather['units'],false,$weather['entry']));
 }
 
 $weather['replace']['current'] = implode('',$weather['current']);
