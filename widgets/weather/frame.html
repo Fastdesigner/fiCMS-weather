@@ -11,7 +11,7 @@
 	[/if]
 </section>
 
-[repeat=current]
+[repeat=current noreplace]
 <article class="weather__item weather__item--current">
 	[if '###has_icon###'=='1']
 	<img class="weather__icon" src="###icon_url###" alt="###description###" width="64" height="64" loading="lazy">
@@ -31,7 +31,7 @@
 </article>
 [/repeat]
 
-[repeat=forecast]
+[repeat=forecast noreplace]
 <article class="weather__item">
 	<time class="weather__date" datetime="###datetime###">###date_label###</time>
 	[if '###has_icon###'=='1']
