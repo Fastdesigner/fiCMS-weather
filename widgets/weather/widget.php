@@ -76,7 +76,7 @@ $weather['structure'] = parser__file($weather['structure_file']);
 foreach (['current','forecast'] as $weather['section']) if (!isset($weather['structure'][$weather['section']]['inner'])) $weather['structure'][$weather['section']] = ['inner'=>''];
 
 if (isset($weather['block']['option_weather_location'])) $weather['location'] = trim((string) $weather['block']['option_weather_location']);
-if ($weather['location'] == '' && isset($weather['parts'][0])) $weather['location'] = $weather['parts'][0];
+if ($weather['location'] == '' && isset($weather['parts'][0]) && !is_numeric($weather['parts'][0])) $weather['location'] = $weather['parts'][0];
 if (isset($weather['block']['option_weather_layout'])) $weather['layout'] = trim((string) $weather['block']['option_weather_layout']);
 elseif (isset($weather['parts'][1]) && !is_numeric($weather['parts'][1])) $weather['layout'] = $weather['parts'][1];
 if (!in_array($weather['layout'],['compact','list'],true)) $weather['layout'] = 'compact';
@@ -86,7 +86,7 @@ elseif (isset($weather['parts'][1]) && is_numeric($weather['parts'][1])) $weathe
 
 foreach ($weather['options'] as $weather['option'] => $weather['default']) $weather['options'][$weather['option']] = intval($weather['block']['option_'.$weather['option']] ?? $weather['default']) == 1 ? 1 : 0;
 
-if (isset($weather['parts'][0],$weather['parts'][1]) && is_numeric($weather['parts'][0]) && is_numeric($weather['parts'][1])) {
+if (trim((string) ($weather['block']['option_weather_location'] ?? '')) == '' && isset($weather['parts'][0],$weather['parts'][1]) && preg_match('/^-?\d+\.\d+$/',$weather['parts'][0]) && preg_match('/^-?\d+\.\d+$/',$weather['parts'][1]) && abs((float) $weather['parts'][0]) <= 90 && abs((float) $weather['parts'][1]) <= 180) {
 	$weather['custom_location'] = ['lat'=>$weather['parts'][0],'lon'=>$weather['parts'][1],'label'=>$weather['block']['option_weather_label'] ?? ''];
 	if (isset($weather['parts'][2]) && intval($weather['parts'][2]) > 0) $weather['days'] = intval($weather['parts'][2]);
 	$weather['data'] = $weather['entry']->forecastCustom($weather['custom_location'],['days'=>$weather['days']]);
