@@ -20,9 +20,11 @@ class Weather {
 	];
 
 	public function __construct(string $basePath = '') {
-		$this->basePath = rtrim($basePath,'/');
+		$this->basePath = rtrim(str_replace('\\','/',$basePath),'/');
 		if ($this->basePath === '') $this->basePath = dirname(__DIR__);
 		if (defined('PLUGINPATH') && is_dir(PLUGINPATH.'/'.basename($this->basePath))) $this->basePath = PLUGINPATH.'/'.basename($this->basePath);
+		$root = rtrim(str_replace('\\','/',getcwd() ?: ''),'/').'/';
+		if ($root !== '/' && str_starts_with($this->basePath,$root)) $this->basePath = substr($this->basePath,strlen($root));
 		$this->configFile = $this->basePath.'/data/weather.json';
 		$this->cacheDir = $this->basePath.'/cache';
 	}
@@ -73,21 +75,19 @@ class Weather {
 		$extension = strtolower(pathinfo($file,PATHINFO_EXTENSION));
 		if (!in_array($extension,['png','webp','svg','gif','jpg','jpeg'],true)) return ['result'=>false];
 		$this->deleteCustomIcon($icon);
-		$content = file_get_contents($file);
-		return ['result'=>is_string($content) && $this->write($this->basePath.'/assets/images/weather/custom/'.$icon.'.'.$extension,$content),'icon'=>$icon];
+		$content = \ficms\Files::read($file);
+		return ['result'=>is_string($content) && \ficms\Files::writeContent($this->basePath.'/assets/images/weather/custom/'.$icon.'.'.$extension,$content),'icon'=>$icon];
 	}
 
 	public function getConfig(): array {
 		$config = $this->configDefaults;
-		if (is_file($this->configFile)) {
-			$stored = $this->decode(file_get_contents($this->configFile));
-			if (is_array($stored)) $config = array_replace_recursive($config,$stored);
-		}
+		$stored = \ficms\Files::readJson($this->configFile);
+		if ($stored) $config = array_replace_recursive($config,$stored);
 		return $this->normalizeConfig($config);
 	}
 
 	public function saveConfig(array $config = []): bool {
-		return $this->write($this->configFile,$this->normalizeConfig(array_replace_recursive($this->configDefaults,$config)),true);
+		return \ficms\Files::writeContent($this->configFile,$this->normalizeConfig(array_replace_recursive($this->configDefaults,$config)),true,true);
 	}
 
 	public function serviceStatus(): array {
@@ -246,7 +246,7 @@ class Weather {
 		$provider = new OpenWeather();
 		$result = $provider->fetch($location,['key'=>trim((string) ($service['key'] ?? '')),'units'=>'metric','language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
 		if (!empty($result['result']) && is_array($result['data'] ?? null)) {
-			$this->write($this->cacheFile($location['id']),['updated_at'=>intval($_SERVER['now'] ?? time()),'code'=>intval($result['code'] ?? 0),'data'=>$result['data']]);
+			\ficms\Files::writeContent($this->cacheFile($location['id']),['updated_at'=>intval($_SERVER['now'] ?? time()),'code'=>intval($result['code'] ?? 0),'data'=>$result['data']]);
 			return $this->limitForecast($result['data'],$location,$options,$config);
 		}
 		if (is_array($cache['data'] ?? null)) return $this->limitForecast(array_merge($cache['data'],['stale'=>1,'error'=>$result['error'] ?? '']),$location,$options,$config);
@@ -287,7 +287,7 @@ class Weather {
 			break;
 		}
 		$this->saveConfig($config);
-		if (!empty($result['result']) && is_array($result['data'] ?? null)) $this->write($this->cacheFile($location['id']),['updated_at'=>intval($_SERVER['now'] ?? time()),'code'=>intval($result['code'] ?? 0),'data'=>$result['data']]);
+		if (!empty($result['result']) && is_array($result['data'] ?? null)) \ficms\Files::writeContent($this->cacheFile($location['id']),['updated_at'=>intval($_SERVER['now'] ?? time()),'code'=>intval($result['code'] ?? 0),'data'=>$result['data']]);
 		return $result;
 	}
 
@@ -302,9 +302,7 @@ class Weather {
 
 	private function readCache(string $locationId): array {
 		$file = $this->cacheFile($locationId);
-		if ($file === '' || !is_file($file)) return [];
-		$data = $this->decode(file_get_contents($file));
-		return is_array($data) ? $data : [];
+		return $file === '' ? [] : \ficms\Files::readJson($file);
 	}
 
 	private function cacheFresh(array $cache, int $minutes): bool {
@@ -318,12 +316,12 @@ class Weather {
 
 	private function deleteCache(string $locationId): void {
 		$file = $this->cacheFile($locationId);
-		$this->deleteFile($file,false);
+		if ($file !== '' && is_file($file)) \ficms\Files::delete($file,false);
 	}
 
 	private function deleteCustomIcon(string $icon): bool {
 		$result = true;
-		foreach (glob($this->basePath.'/assets/images/weather/custom/'.$icon.'.{png,webp,svg,gif,jpg,jpeg}',GLOB_BRACE) ?: [] as $file) if (!$this->deleteFile($file,false)) $result = false;
+		foreach (glob($this->basePath.'/assets/images/weather/custom/'.$icon.'.{png,webp,svg,gif,jpg,jpeg}',GLOB_BRACE) ?: [] as $file) if (!\ficms\Files::delete($file,false)) $result = false;
 		return $result;
 	}
 
@@ -379,27 +377,8 @@ class Weather {
 		return is_string($id) && preg_match('/^[a-z0-9][a-z0-9_-]*$/i',$id);
 	}
 
-	private function decode($value): mixed {
-		if (!is_string($value)) return $value;
-		$data = json_decode($value,true);
-		return json_last_error() === JSON_ERROR_NONE ? $data : null;
-	}
-
 	private function mediaValueFile(mixed $value): string {
-		if (function_exists('images__get_relevant_json')) {
-			$media = images__get_relevant_json($value,false,'or');
-			if (is_array($media)) {
-				foreach (['or','src'] as $key) {
-					$file = $this->publicPathToFile($media[$key] ?? '');
-					if ($file !== '') return $file;
-				}
-			}
-		}
-		$data = function_exists('helper__json_convert') ? helper__json_convert($value) : $this->decode(is_string($value) ? $value : '');
-		if (!is_array($data)) return '';
-		$key = array_key_first($data);
-		if ($key === null || empty($data[$key]['media'][0]['id']) || !function_exists('images__parse_image')) return '';
-		$media = images__parse_image($data[$key]['media'][0]['id']);
+		$media = images__get_relevant_json($value,false,'or');
 		if (!is_array($media)) return '';
 		foreach (['or','src'] as $key) {
 			$file = $this->publicPathToFile($media[$key] ?? '');
@@ -459,26 +438,4 @@ class Weather {
 		return round($value,1);
 	}
 
-	private function deleteFile(string $file, bool $checkIfEmpty = true): bool {
-		if ($file === '' || !is_file($file)) return false;
-		$relative = $this->relativePath($file);
-		if ($relative !== '' && function_exists('helper__files_delete')) return helper__files_delete($relative,$checkIfEmpty);
-		return @unlink($file);
-	}
-
-	private function relativePath(string $file): string {
-		$file = str_replace('\\','/',$file);
-		$root = str_replace('\\','/',getcwd() ?: '');
-		if ($root !== '' && str_starts_with($file,$root.'/')) return substr($file,strlen($root) + 1);
-		return $file !== '' && $file[0] !== '/' && !preg_match('/^[a-zA-Z]:[\/\\\\]/',$file) ? $file : '';
-	}
-
-	private function write(string $file, array|string $data, bool $secure = false): bool {
-		if ($file === '') return false;
-		$relative = $this->relativePath($file);
-		if ($relative !== '' && function_exists('helper__files_write')) return helper__files_write($relative,$data,true,$secure);
-		if (!is_dir(dirname($file))) mkdir(dirname($file),0775,true);
-		if (is_array($data)) $data = json_encode($data,JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-		return file_put_contents($file,$data) !== false;
-	}
 }
