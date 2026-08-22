@@ -9,5 +9,8 @@
     "psr-4": {
       "weather\\": "src/"
     }
-  }
+  },
+  "requires": [
+    "ficms\\Images::selection"
+  ]
 }
