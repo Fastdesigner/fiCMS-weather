@@ -378,7 +378,7 @@ class Weather {
 	}
 
 	private function mediaValueFile(mixed $value): string {
-		$media = images__get_relevant_json($value,false,'or');
+		$media = \ficms\Images::selection($value,'or');
 		if (!is_array($media)) return '';
 		foreach (['or','src'] as $key) {
 			$file = $this->publicPathToFile($media[$key] ?? '');
