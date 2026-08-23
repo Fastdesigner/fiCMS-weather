@@ -11,6 +11,6 @@
     }
   },
   "requires": [
-    "ficms\\Images::selection"
+    "ficms\\Media::selection"
   ]
 }
