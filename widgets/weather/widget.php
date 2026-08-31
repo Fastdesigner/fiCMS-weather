@@ -36,7 +36,7 @@ if (!function_exists('weather__widget_row')) {
 
 $weather = [
 	'entry'=>new \weather\Weather(dirname(__DIR__,2)),
-	'structure_file'=>widgets__layout_file('weather'),
+	'structure_file'=>\widget\Registry::layoutFile('weather'),
 	'structure'=>[],
 	'block'=>isset($service['temp']['data']['block']) && is_array($service['temp']['data']['block']) ? $service['temp']['data']['block'] : [],
 	'parts'=>array_values(array_filter(array_map('trim',explode('|',trim((string) ($service['temp']['data']['add'] ?? '')))),fn($value) => $value !== '')),
