@@ -102,13 +102,8 @@ class OpenWeather {
 	}
 
 	private function request(string $url): array {
-		if (function_exists('curl__request')) {
-			$result = curl__request($url,[],[],defined('CURL_DEFAULT_AGENT') ? CURL_DEFAULT_AGENT : '', '', null, 'GET', 12);
-			return ['code'=>intval($result['code'] ?? 0),'body'=>(string) ($result['body'] ?? ''),'error'=>(string) ($result['error'] ?? '')];
-		}
-
-		$body = @file_get_contents($url);
-		return ['code'=>$body === false ? 0 : 200,'body'=>$body === false ? '' : $body,'error'=>$body === false ? 'request_failed' : ''];
+		$result = \ficms\Http::request($url,['method'=>'GET','timeout'=>12]);
+		return ['code'=>intval($result['code'] ?? 0),'body'=>(string) ($result['body'] ?? ''),'error'=>(string) ($result['error'] ?? '')];
 	}
 
 	private function coordinate($value, float $min, float $max): ?float {
