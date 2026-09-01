@@ -13,6 +13,7 @@ class McpView {
 		$weather['config'] = $weather['instance']->getConfig();
 		$weather['locations'] = $weather['instance']->locations($weather['config']);
 		if ($weather['id'] === '') $weather['id'] = 'default';
+		if ($weather['scope'] === 'admin' && ($weather['data']['view'] ?? '') === 'edit') return self::edit($weather['instance'],$weather['id'],$weather['config'],$weather['locations']);
 		if (intval($weather['config']['active'] ?? 0) !== 1) return ['error'=>'Weather is not active.'];
 		if ($weather['id'] === 'list') return self::locations($weather['locations'],(string) ($weather['config']['default_location'] ?? ''),$weather['scope']);
 		if (!count($weather['locations'])) return ['error'=>'No weather locations are configured.'];
@@ -30,6 +31,57 @@ class McpView {
 		$weather['forecast'] = $weather['instance']->forecast($weather['id'],$weather['options']);
 		if (empty($weather['forecast']['result'])) return ['error'=>trim((string) ($weather['forecast']['error'] ?? 'Weather forecast is unavailable.'))];
 		return self::forecast($weather['forecast']);
+	}
+
+	public static function create(array $data): array {
+		$weather = new Weather();
+		$result = $weather->saveLocation('new',$data);
+		if (empty($result['result'])) return ['error'=>self::writeError((string) ($result['error'] ?? 'location_write_failed'))];
+		return ['type'=>'weather','id'=>$result['id'],'created'=>true,'default'=>$weather->getConfig()['default_location'] === $result['id']];
+	}
+
+	public static function update(string $id, array $data): array {
+		$weather = new Weather();
+		$result = $weather->saveLocation($id,$data);
+		if (empty($result['result'])) return ['error'=>self::writeError((string) ($result['error'] ?? 'location_write_failed'))];
+		return ['type'=>'weather','id'=>$result['id'],'updated'=>true,'default'=>$weather->getConfig()['default_location'] === $result['id']];
+	}
+
+	public static function delete(string $id): array {
+		$weather = new Weather();
+		if (!isset($weather->locations()[$id])) return ['error'=>'Weather location not found.'];
+		if (!$weather->deleteLocation($id)) return ['error'=>'Weather location could not be deleted.'];
+		return ['type'=>'weather','id'=>$id,'deleted'=>true];
+	}
+
+	private static function edit(Weather $weather, string $id, array $config, array $locations): array {
+		if ($id === 'default') $id = trim((string) ($config['default_location'] ?? ''));
+		if ($id === '' || !isset($locations[$id])) return ['error'=>'Weather location not found.'];
+		return [
+			'type'=>'weather',
+			'id'=>$id,
+			'writable'=>[
+				'label'=>(string) ($locations[$id]['label'] ?? ''),
+				'lat'=>(string) ($locations[$id]['lat'] ?? ''),
+				'lon'=>(string) ($locations[$id]['lon'] ?? ''),
+				'active'=>intval($locations[$id]['active'] ?? 0),
+				'forecast_days'=>intval($locations[$id]['forecast_days'] ?? 5),
+				'default'=>$id === ($config['default_location'] ?? '')
+			],
+			'service'=>$weather->serviceStatus()
+		];
+	}
+
+	private static function writeError(string $error): string {
+		return match ($error) {
+			'location_not_found' => 'Weather location not found.',
+			'location_id_invalid' => 'Weather location id may contain only letters, numbers, underscores and hyphens.',
+			'location_exists' => 'Weather location id already exists.',
+			'location_label_required' => 'Weather location label is required.',
+			'location_lat_invalid' => 'Weather latitude must be a number from -90 to 90.',
+			'location_lon_invalid' => 'Weather longitude must be a number from -180 to 180.',
+			default => 'Weather location could not be saved.'
+		};
 	}
 
 	private static function locations(array $locations, string $default, string $scope): array {

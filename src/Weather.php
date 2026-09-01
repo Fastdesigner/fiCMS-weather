@@ -140,25 +140,40 @@ class Weather {
 	}
 
 	public function saveLocationFromPost(string $id, array $post = []): array {
+		return $this->saveLocation($id,[
+			'active'=>!empty($post['location_active']) ? 1 : 0,
+			'label'=>$post['location_label'] ?? '',
+			'lat'=>$post['location_lat'] ?? '',
+			'lon'=>$post['location_lon'] ?? ''
+		]);
+	}
+
+	public function saveLocation(string $id, array $data = []): array {
 		$config = $this->getConfig();
 		$original = $this->validId($id) ? trim($id) : '';
+		if ($original !== '' && $original !== 'new' && !isset($this->locations($config)[$original])) return ['result'=>false,'error'=>'location_not_found'];
 		$saveId = $original;
-		if ($saveId === '' || $saveId === 'new') $saveId = $this->createLocationId($post['location_label'] ?? 'location',$config);
-		$entry = array_merge($this->blankLocation($saveId),[
-			'id'=>$saveId,
-			'active'=>!empty($post['location_active']) ? 1 : 0,
-			'label'=>trim((string) ($post['location_label'] ?? '')),
-			'lat'=>trim((string) ($post['location_lat'] ?? '')),
-			'lon'=>trim((string) ($post['location_lon'] ?? ''))
-		]);
+		if ($saveId === '' || $saveId === 'new') {
+			$requestedId = trim((string) ($data['id'] ?? ''));
+			if ($requestedId !== '' && !$this->validId($requestedId)) return ['result'=>false,'error'=>'location_id_invalid'];
+			if ($requestedId !== '' && isset($this->locations($config)[$requestedId])) return ['result'=>false,'error'=>'location_exists'];
+			$saveId = $requestedId !== '' ? $requestedId : $this->createLocationId((string) ($data['label'] ?? 'location'),$config);
+		}
+		$entry = $this->blankLocation($saveId);
 		foreach ($config['locations'] as $key => $location) {
-			if (($location['id'] ?? '') !== $original && ($location['id'] ?? '') !== $saveId) continue;
-			$entry = array_merge($location,$entry);
+			if (($location['id'] ?? '') !== $original) continue;
+			$entry = array_merge($entry,$location);
 			array_splice($config['locations'],$key,1);
 			break;
 		}
+		foreach (['active','label','lat','lon','forecast_days'] as $key) if (array_key_exists($key,$data)) $entry[$key] = $data[$key];
+		$entry['id'] = $saveId;
+		$entry = $this->normalizeLocation($entry);
+		if ($entry['label'] === '') return ['result'=>false,'error'=>'location_label_required'];
+		if (!is_numeric($entry['lat']) || floatval($entry['lat']) < -90 || floatval($entry['lat']) > 90) return ['result'=>false,'error'=>'location_lat_invalid'];
+		if (!is_numeric($entry['lon']) || floatval($entry['lon']) < -180 || floatval($entry['lon']) > 180) return ['result'=>false,'error'=>'location_lon_invalid'];
 		$config['locations'][] = $this->normalizeLocation($entry);
-		if ($config['default_location'] === '' || $original === $config['default_location']) $config['default_location'] = $saveId;
+		if ($config['default_location'] === '' || $original === $config['default_location'] || !empty($data['default'])) $config['default_location'] = $saveId;
 		return ['result'=>$this->saveConfig($config),'id'=>$saveId];
 	}
 

@@ -14,10 +14,11 @@ fiCMS Weather manages multiple weather locations in the admin settings and rende
 - Forecast widget with configurable location, layout, days and visible metrics
 - Cron refresh for active locations
 - MCP `get` handler for current conditions and forecasts in visitor chat
+- Admin MCP handlers for creating, updating and deleting weather locations
 
 ## MCP
 
-The plugin contributes the `weather` type to the existing fiCMS `get` tool. It does not add another MCP tool.
+The plugin contributes the `weather` type to the existing fiCMS `get`, `create`, `update` and `delete` tools. It does not add another MCP tool.
 Its handler opts into chat discovery, so only installations with the plugin advertise weather as contextual visitor-chat data.
 
 ```json

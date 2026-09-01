@@ -6,7 +6,7 @@ if ($context->mode === 'describe') return [
 	'purpose'=>'Loads current conditions and the forecast for a configured business location. Use it for direct weather questions and when a near-term arrival, departure or outdoor plan makes verified weather genuinely useful; never infer conditions without this result.',
 	'args'=>[
 		'id'=>'"default", "list", or a configured weather location id.',
-		'data'=>'Optional days from 1 to 8 and units "metric" or "imperial".'
+		'data'=>'Optional days from 1 to 8 and units "metric" or "imperial". An admin passes {"view":"edit"} before updating one location.'
 	],
 	'scope'=>['user','admin'],
 	'discover'=>['chat'],
