@@ -21,6 +21,7 @@ if (!function_exists('weather__widget_row')) {
 			'wind_speed'=>htmlspecialchars((string) ($row['wind_speed'] ?? 0),ENT_QUOTES,'UTF-8'),
 			'humidity'=>htmlspecialchars((string) ($row['humidity'] ?? 0),ENT_QUOTES,'UTF-8'),
 			'pop'=>htmlspecialchars((string) ($row['pop'] ?? 0),ENT_QUOTES,'UTF-8'),
+			'snow'=>htmlspecialchars((string) ($row['snow'] ?? 0),ENT_QUOTES,'UTF-8'),
 			'description'=>htmlspecialchars(trim((string) ($row['description'] ?? '')),ENT_QUOTES,'UTF-8'),
 			'icon'=>$icon,
 			'icon_url'=>$icon !== '' ? $entry->iconUrl($icon) : '',
