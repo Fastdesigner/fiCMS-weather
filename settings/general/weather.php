@@ -1,10 +1,5 @@
 <?php
 
-if (!file_exists(DESIGNSYSTEM.'/assets/js/admin/sys.js')) {
-	require PLUGINPATH.'/fiCMS-weather/deprecated/settings/general/weather.php';
-	return;
-}
-
 if (!$site['onsite'] || !isset($settings['key']) || $html['is_superviser'] != 1) return;
 
 require_once dirname(__DIR__,2).'/src/Weather.php';
