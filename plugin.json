@@ -11,6 +11,7 @@
     }
   },
   "requires": [
+    "ficms\\Ui\\Node::dialog",
     "ficms\\Http::request",
     "ficms\\Media::selection"
   ]
