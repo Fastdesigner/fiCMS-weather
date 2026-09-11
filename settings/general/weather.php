@@ -72,22 +72,24 @@ $weather['locations'] = $weather['entry']->locations($weather['config']);
 $weather['ui'] = new \ficms\Ui($settings['key'],'weather',$user['language']);
 $weather['locations_tab'] = $weather['ui']->tab('locations',['label'=>language__get($user['language'],'_weather_tab_locations')]);
 $weather['locations_list'] = $weather['locations_tab']->listing('locations',['clear'=>true,'sort'=>true]);
+// Knoten-Ids sind flach (<key>-<name>): jeder Standort traegt seinen Namen in den Kindern seines Dropdowns,
+// sonst kollidieren "active", "sync" usw. ab dem zweiten Standort.
 foreach ($weather['locations'] as $weather['location']) {
 	$weather['preview'] = $weather['entry']->preview($weather['location']['id']);
 	$weather['dropdown'] = $weather['locations_list']->dropdown('location-'.$weather['location']['id'],['label'=>$weather['location']['label'] != '' ? $weather['location']['label'] : $weather['location']['id'],'image'=>$weather['entry']->iconUrl($weather['preview']['current']['icon'] ?? '01d'),'independent'=>true]);
 	if ($weather['preview']['daily']) {
-		$weather['dropdown']->text('forecast-title',language__get($user['language'],'_weather_forecast_preview'));
+		$weather['dropdown']->text('location-'.$weather['location']['id'].'-forecast-title',language__get($user['language'],'_weather_forecast_preview'));
 		foreach (array_slice($weather['preview']['daily'],0,5) as $weather['day']) {
 			if (!is_array($weather['day'])) continue;
-			$weather['dropdown']->item('forecast-'.$weather['day']['date'],['label'=>format__date_relative(intval($weather['day']['date'] ?? $_SERVER['now']),'date',$user['language']),'subtitle'=>implode(' · ',array_filter([trim((string) ($weather['day']['description'] ?? '')),($weather['day']['temp_min'] ?? '').' / '.($weather['day']['temp_max'] ?? '').' °'.(($weather['preview']['current']['units'] ?? 'metric') == 'imperial' ? 'F' : 'C')],fn($value) => trim((string) $value) !== '')),'image'=>$weather['entry']->iconUrl($weather['day']['icon'] ?? '01d')]);
+			$weather['dropdown']->item('location-'.$weather['location']['id'].'-forecast-'.$weather['day']['date'],['label'=>format__date_relative(intval($weather['day']['date'] ?? $_SERVER['now']),'date',$user['language']),'subtitle'=>implode(' · ',array_filter([trim((string) ($weather['day']['description'] ?? '')),($weather['day']['temp_min'] ?? '').' / '.($weather['day']['temp_max'] ?? '').' °'.(($weather['preview']['current']['units'] ?? 'metric') == 'imperial' ? 'F' : 'C')],fn($value) => trim((string) $value) !== '')),'image'=>$weather['entry']->iconUrl($weather['day']['icon'] ?? '01d')]);
 		}
 	}
-	if ($weather['location']['last_error'] != '') $weather['dropdown']->item('error',['label'=>language__get($user['language'],'_weather_last_error'),'subtitle'=>$weather['location']['last_error'],'notify'=>'warning']);
-	$weather['dropdown']->item('active',['label'=>language__get($user['language'],'_weather_location_active'),'toggle'=>['id'=>'location-'.$weather['location']['id'],'action'=>'ac','name'=>$settings['key'].'-location-'.$weather['location']['id'],'checked'=>$weather['location']['active'] == 1]]);
-	$weather['dropdown']->item('default',['label'=>language__get($user['language'],'_weather_default_location'),'toggle'=>['id'=>'location-'.$weather['location']['id'],'action'=>'default_location','name'=>$settings['key'].'-location-'.$weather['location']['id'].'-default','checked'=>$weather['config']['default_location'] == $weather['location']['id']]]);
-	$weather['dropdown']->item('sync',['label'=>language__get($user['language'],'_weather_sync'),'actions'=>['icons'=>['sync'=>['id'=>'location-'.$weather['location']['id'],'action'=>'sync','systemicon'=>'refresh','title'=>language__get($user['language'],'_weather_sync')]]]]);
-	$weather['dropdown']->item('edit',['label'=>language__get($user['language'],'_weather_location_edit_action'),'load'=>['id'=>'location-'.$weather['location']['id'],'form'=>true]]);
-	$weather['dropdown']->button('delete',['label'=>language__get($user['language'],'_weather_location_delete'),'action'=>'delete','aid'=>'location-'.$weather['location']['id'],'confirm'=>language__get($user['language'],'_ui_confirm_delete')]);
+	if ($weather['location']['last_error'] != '') $weather['dropdown']->item('location-'.$weather['location']['id'].'-error',['label'=>language__get($user['language'],'_weather_last_error'),'subtitle'=>$weather['location']['last_error'],'notify'=>'warning']);
+	$weather['dropdown']->item('location-'.$weather['location']['id'].'-active',['label'=>language__get($user['language'],'_weather_location_active'),'toggle'=>['id'=>'location-'.$weather['location']['id'],'action'=>'ac','name'=>$settings['key'].'-location-'.$weather['location']['id'],'checked'=>$weather['location']['active'] == 1]]);
+	$weather['dropdown']->item('location-'.$weather['location']['id'].'-default',['label'=>language__get($user['language'],'_weather_default_location'),'toggle'=>['id'=>'location-'.$weather['location']['id'],'action'=>'default_location','name'=>$settings['key'].'-location-'.$weather['location']['id'].'-default','checked'=>$weather['config']['default_location'] == $weather['location']['id']]]);
+	$weather['dropdown']->item('location-'.$weather['location']['id'].'-sync',['label'=>language__get($user['language'],'_weather_sync'),'actions'=>['icons'=>['sync'=>['id'=>'location-'.$weather['location']['id'],'action'=>'sync','systemicon'=>'refresh','title'=>language__get($user['language'],'_weather_sync')]]]]);
+	$weather['dropdown']->item('location-'.$weather['location']['id'].'-edit',['label'=>language__get($user['language'],'_weather_location_edit_action'),'load'=>['id'=>'location-'.$weather['location']['id'],'form'=>true]]);
+	$weather['dropdown']->button('location-'.$weather['location']['id'].'-delete',['label'=>language__get($user['language'],'_weather_location_delete'),'action'=>'delete','aid'=>'location-'.$weather['location']['id'],'confirm'=>language__get($user['language'],'_ui_confirm_delete')]);
 }
 if (!$weather['locations']) $weather['locations_list']->text('empty',language__get($user['language'],'_weather_locations_empty'));
 $weather['locations_list']->item('new',['label'=>language__get($user['language'],'_weather_location_new'),'load'=>['id'=>'new','form'=>true]]);
@@ -102,7 +104,8 @@ foreach ($weather['entry']->iconCodes() as $weather['icon']) $weather['icons_gri
 $weather['roadmap'] = $weather['ui']->tab('roadmap',['label'=>language__get($user['language'],'_weather_tab_warnings')]);
 $weather['roadmap']->text('info',language__get($user['language'],'_weather_warnings_roadmap_info'));
 $weather['roadmap_list'] = $weather['roadmap']->listing('warnings-roadmap',['clear'=>true]);
-foreach (['locations','channels','severity','quiet'] as $weather['roadmap_item']) $weather['roadmap_list']->item($weather['roadmap_item'],['label'=>language__get($user['language'],'_weather_warnings_roadmap_'.$weather['roadmap_item'])]);
+// Knoten-Ids sind flach (<key>-<name>): "locations" gehoert schon der Standortliste, die Roadmap-Punkte tragen ihr Praefix.
+foreach (['locations','channels','severity','quiet'] as $weather['roadmap_item']) $weather['roadmap_list']->item('roadmap-'.$weather['roadmap_item'],['label'=>language__get($user['language'],'_weather_warnings_roadmap_'.$weather['roadmap_item'])]);
 $weather['ui']->emit($settings);
 
 foreach ($weather['output'] as $key => $value) {
