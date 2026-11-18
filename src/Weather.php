@@ -5,6 +5,7 @@ namespace weather;
 require_once __DIR__.'/OpenWeather.php';
 
 class Weather {
+	private const FORECAST_CACHE_VERSION = 2;
 	private string $basePath = '';
 	private string $configFile = '';
 	private string $cacheDir = '';
@@ -267,7 +268,7 @@ class Weather {
 		$provider = new OpenWeather();
 		$result = $provider->fetch($location,['key'=>trim((string) ($service['key'] ?? '')),'units'=>'metric','language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
 		if (!empty($result['result']) && is_array($result['data'] ?? null)) {
-			\ficms\Files::writeContent($this->cacheFile($location['id']),['updated_at'=>intval($_SERVER['now'] ?? time()),'code'=>intval($result['code'] ?? 0),'data'=>$result['data']]);
+			$this->writeCache($location['id'],$result);
 			return $this->limitForecast($result['data'],$location,$options,$config);
 		}
 		if (is_array($cache['data'] ?? null)) return $this->limitForecast(array_merge($cache['data'],['stale'=>1,'error'=>$result['error'] ?? '']),$location,$options,$config);
@@ -308,7 +309,7 @@ class Weather {
 			break;
 		}
 		$this->saveConfig($config);
-		if (!empty($result['result']) && is_array($result['data'] ?? null)) \ficms\Files::writeContent($this->cacheFile($location['id']),['updated_at'=>intval($_SERVER['now'] ?? time()),'code'=>intval($result['code'] ?? 0),'data'=>$result['data']]);
+		if (!empty($result['result']) && is_array($result['data'] ?? null)) $this->writeCache($location['id'],$result);
 		return $result;
 	}
 
@@ -323,7 +324,17 @@ class Weather {
 
 	private function readCache(string $locationId): array {
 		$file = $this->cacheFile($locationId);
-		return $file === '' ? [] : \ficms\Files::readJson($file);
+		$cache = $file === '' ? [] : \ficms\Files::readJson($file);
+		return ($cache['version'] ?? null) === self::FORECAST_CACHE_VERSION ? $cache : [];
+	}
+
+	private function writeCache(string $locationId, array $result): void {
+		\ficms\Files::writeContent($this->cacheFile($locationId),[
+			'version'=>self::FORECAST_CACHE_VERSION,
+			'updated_at'=>intval($_SERVER['now'] ?? time()),
+			'code'=>intval($result['code'] ?? 0),
+			'data'=>$result['data']
+		]);
 	}
 
 	private function cacheFresh(array $cache, int $minutes): bool {

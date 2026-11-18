@@ -47,7 +47,7 @@ namespace {
 			'daily'=>[['dt'=>$_SERVER['now'],'temp'=>['day'=>14,'min'=>8,'max'=>15],'pop'=>0.4,'wind_speed'=>4,'weather'=>[['main'=>'Rain','description'=>'Rain','icon'=>'10d']]]],
 			'alerts'=>[['sender_name'=>'Weather service','event'=>'Storm alert','start'=>$_SERVER['now'],'end'=>$_SERVER['now']+3600,'description'=>'Stay indoors <script>','tags'=>['wind']]]
 		],['id'=>'hotel','label'=>'Hotel <script>','lat'=>51,'lon'=>6]);
-		\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['updated_at'=>$_SERVER['now'],'data'=>$weather_cards['forecast']]);
+		\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['version'=>2,'updated_at'=>$_SERVER['now'],'data'=>$weather_cards['forecast']]);
 		$weather_cards['context'] = new \mcp\Context();
 		$weather_cards['context']->setActor(['kind'=>'system'],'user');
 		$weather_cards['context']->task_id = 'chat-41';
@@ -92,7 +92,7 @@ namespace {
 			$weather_cards['widget'] = weather__widget_row($weather_cards['normalized']['current'],['show_description'=>1,'show_wind'=>1,'show_humidity'=>1,'show_rain_probability'=>1],['temp'=>'°C','wind'=>'m/s'],true,$weather_cards['weather']);
 			weatherCheck($weather_cards['widget']['temp_now_label'] === ($zero ? '0°C' : 'Nicht verfügbar') && $weather_cards['widget']['pop_label'] === ($zero ? '0%' : 'Nicht verfügbar'),'Widget invented numeric values or hid zero');
 			weatherCheck($weather_cards['widget']['render_wind'] === ($zero ? 1 : 0) && $weather_cards['widget']['render_humidity'] === ($zero ? 1 : 0),'Widget lost optional measurement presence');
-			\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['updated_at'=>$_SERVER['now'],'data'=>$weather_cards['normalized']]);
+			\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['version'=>2,'updated_at'=>$_SERVER['now'],'data'=>$weather_cards['normalized']]);
 			foreach (['metric','imperial'] as $units) {
 				$weather_cards['numeric_context'] = clone $weather_cards['context'];
 				$weather_cards['numeric_context']->args['data']['units'] = $units;
@@ -119,12 +119,12 @@ namespace {
 		$weather_cards['raw']['current'] = ['dt'=>$_SERVER['now'],'temp'=>0];
 		unset($weather_cards['raw']['daily'][0]['temp']['max']);
 		$weather_cards['normalized'] = (new \weather\OpenWeather())->normalize($weather_cards['raw'],['id'=>'hotel','label'=>'Hotel','lat'=>51,'lon'=>6]);
-		\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['updated_at'=>$_SERVER['now'],'data'=>$weather_cards['normalized']]);
+		\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['version'=>2,'updated_at'=>$_SERVER['now'],'data'=>$weather_cards['normalized']]);
 		$weather_cards['partial'] = weatherGet($weather_cards['context']);
 		$weather_cards['partial_node'] = \weather\Card::parse('Weather',$weather_cards['partial']['card']['reference'],'en',$weather_cards['context']);
 		weatherCheck($weather_cards['partial']['daily'][0]['temperature_min'] === 32 && $weather_cards['partial']['daily'][0]['temperature_max'] === null && !str_contains(\weather\Card::html($weather_cards['partial_node'],'en'),'chat-card__range'),'Partial bounds invented a bound or drew a range bar');
 		$weather_cards['forecast']['current']['temp_now'] = 99;
-		\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['updated_at'=>1,'data'=>$weather_cards['forecast']]);
+		\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['version'=>2,'updated_at'=>1,'data'=>$weather_cards['forecast']]);
 		$weather_cards['stale'] = weatherGet($weather_cards['context']);
 		weatherCheck(\ficms\Http::$calls === 1 && $weather_cards['stale']['stale'] === true && $weather_cards['stale']['warning'] === 'provider_unavailable','Stale fallback or provider call count changed');
 		$weather_cards['stale_node'] = \weather\Card::parse('Weather',$weather_cards['stale']['card']['reference'],'en',$weather_cards['context']);
@@ -141,6 +141,12 @@ namespace {
 			weatherCheck(str_contains(\weather\Card::plain($node),'Storm alert'),'Plain card lost alerts');
 		}
 		weatherCheck(\ficms\Http::$calls === 1,'Parsing or delivery called weather provider');
+		$weather_cards['legacy'] = $weather_cards['forecast'];
+		$weather_cards['legacy']['current']['humidity'] = 0;
+		$weather_cards['legacy']['daily'][0]['pop'] = 0;
+		\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['updated_at'=>$_SERVER['now'],'data'=>$weather_cards['legacy']]);
+		$weather_cards['legacy_result'] = weatherGet($weather_cards['context']);
+		weatherCheck(\ficms\Http::$calls === 2 && empty($weather_cards['legacy_result']['card']),'Legacy cache bypassed refresh or created a card when refresh failed');
 		$weather_cards['unsafe'] = $weather_cards['node'];
 		$weather_cards['unsafe']['forecast']['current']['icon'] = '../../private';
 		weatherCheck(count(\weather\Card::attachments($weather_cards['unsafe'])) === 1,'Untrusted icon name resolved a file');
@@ -166,7 +172,7 @@ namespace {
 		unset($_SERVER['mcp_simulation_context']);
 		weatherCheck(\weather\Card::parse('Expired',$weather_cards['simulated']['card']['reference']) === [],'Ended simulation retained weather snapshot');
 		$GLOBALS['site']['api_weather_key'] = '';
-		weatherCheck(!\weather\Card::available() && \ficms\Http::$calls === 1,'Unavailable service advertised weather cards or called provider');
+		weatherCheck(!\weather\Card::available() && \ficms\Http::$calls === 2,'Unavailable service advertised weather cards or called provider');
 		weatherCheck(str_contains(\weather\Card::html($weather_cards['node'],'en',true),'Storm alert'),'Inactive service removed historical weather facts');
 	} finally {
 		\ficms\Files::removeDirectory('plugins',true,true);
