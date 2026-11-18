@@ -19,4 +19,4 @@ $weatherMcp = [
 ];
 $weatherMcp['result'] = \weather\McpView::read($weatherMcp['id'],$weatherMcp['data'],$context->scope);
 unset($weatherMcp['id'],$weatherMcp['data']);
-return $weatherMcp['result'];
+return \weather\Card::prepare($weatherMcp['result'],$context);

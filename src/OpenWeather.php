@@ -48,7 +48,7 @@ class OpenWeather {
 		$current = is_array($raw['current'] ?? null) ? $raw['current'] : [];
 		$daily = is_array($raw['daily'] ?? null) ? $raw['daily'] : [];
 		$today = is_array($daily[0] ?? null) ? $daily[0] : [];
-		$data['current'] = $this->weatherRow(array_merge($today,$current),$today,true);
+		$data['current'] = $this->weatherRow($current,$today,true);
 
 		foreach ($daily as $day) {
 			if (!is_array($day)) continue;
@@ -74,27 +74,28 @@ class OpenWeather {
 		$weather = is_array($row['weather'][0] ?? null) ? $row['weather'][0] : [];
 		$temp = $row['temp'] ?? null;
 		$dailyTemp = is_array($daily['temp'] ?? null) ? $daily['temp'] : [];
-		if (is_array($temp)) $temp = $temp['day'] ?? ($temp['morn'] ?? ($temp['min'] ?? 0));
+		$pop = $row['pop'] ?? ($current ? ($daily['pop'] ?? null) : null);
+		if (is_array($temp)) $temp = $temp['day'] ?? ($temp['morn'] ?? ($temp['min'] ?? null));
 
 		return [
 			'date'=>intval($row['dt'] ?? 0),
 			'sunrise'=>intval($row['sunrise'] ?? 0),
 			'sunset'=>intval($row['sunset'] ?? 0),
 			'temp'=>$this->number($temp),
-			'temp_now'=>$this->number($current ? ($row['temp'] ?? 0) : ($dailyTemp['day'] ?? $temp)),
-			'temp_min'=>$this->number($dailyTemp['min'] ?? $row['temp_min'] ?? $temp),
-			'temp_max'=>$this->number($dailyTemp['max'] ?? $row['temp_max'] ?? $temp),
-			'feels_like'=>$this->number(is_array($row['feels_like'] ?? null) ? ($row['feels_like']['day'] ?? 0) : ($row['feels_like'] ?? 0)),
-			'pressure'=>$this->number($row['pressure'] ?? 0),
-			'humidity'=>$this->number($row['humidity'] ?? 0),
-			'clouds'=>$this->number($row['clouds'] ?? 0),
-			'uvi'=>$this->number($row['uvi'] ?? 0,1),
-			'wind_speed'=>$this->number($row['wind_speed'] ?? 0,1),
-			'wind_gust'=>$this->number($row['wind_gust'] ?? 0,1),
-			'wind_deg'=>$this->number($row['wind_deg'] ?? 0),
+			'temp_now'=>$this->number($current ? ($row['temp'] ?? null) : ($dailyTemp['day'] ?? $temp)),
+			'temp_min'=>$this->number($dailyTemp['min'] ?? $row['temp_min'] ?? null),
+			'temp_max'=>$this->number($dailyTemp['max'] ?? $row['temp_max'] ?? null),
+			'feels_like'=>$this->number(is_array($row['feels_like'] ?? null) ? ($row['feels_like']['day'] ?? null) : ($row['feels_like'] ?? null)),
+			'pressure'=>$this->number($row['pressure'] ?? null),
+			'humidity'=>$this->number($row['humidity'] ?? null),
+			'clouds'=>$this->number($row['clouds'] ?? null),
+			'uvi'=>$this->number($row['uvi'] ?? null,1),
+			'wind_speed'=>$this->number($row['wind_speed'] ?? null,1),
+			'wind_gust'=>$this->number($row['wind_gust'] ?? null,1),
+			'wind_deg'=>$this->number($row['wind_deg'] ?? null),
 			'rain'=>$this->number(is_array($row['rain'] ?? null) ? ($row['rain']['1h'] ?? 0) : ($row['rain'] ?? 0),1),
 			'snow'=>$this->number(is_array($row['snow'] ?? null) ? ($row['snow']['1h'] ?? 0) : ($row['snow'] ?? 0),1),
-			'pop'=>$this->number(($row['pop'] ?? 0) * 100),
+			'pop'=>is_numeric($pop) ? $this->number($pop * 100) : null,
 			'icon'=>preg_replace('/[^a-z0-9]/i','',trim((string) ($weather['icon'] ?? ''))),
 			'condition'=>trim((string) ($weather['main'] ?? '')),
 			'description'=>trim((string) ($weather['description'] ?? ''))
@@ -128,8 +129,8 @@ class OpenWeather {
 		return $code > 0 ? 'http_'.$code : 'request_failed';
 	}
 
-	private function number($value, int $precision = 0): float|int {
-		if (!is_numeric($value)) $value = 0;
+	private function number($value, int $precision = 0): float|int|null {
+		if (!is_numeric($value)) return null;
 		$value = round(floatval($value),$precision);
 		return $precision === 0 ? intval($value) : $value;
 	}

@@ -4,7 +4,7 @@
   "type": "thirdparty",
   "system": false,
   "description": "Adds admin-managed weather locations, OpenWeather forecasts, visitor-chat context and a frontend widget.",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "autoload": {
     "psr-4": {
       "weather\\": "src/"
@@ -13,6 +13,8 @@
   "requires": [
     "ficms\\Ui\\Node::dialog",
     "ficms\\Http::request",
-    "ficms\\Media::selection"
+    "ficms\\Media::selection",
+    "ficms\\RichResponse\\Snapshots::issue",
+    "ficms\\RichResponse\\Snapshots::read"
   ]
 }

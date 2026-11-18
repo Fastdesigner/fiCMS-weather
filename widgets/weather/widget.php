@@ -8,19 +8,19 @@ if (!function_exists('weather__widget_row')) {
 	function weather__widget_row(array $row, array $options, array $units, bool $current, \weather\Weather $entry): array {
 		$icon = preg_replace('/[^a-z0-9]/i','',trim((string) ($row['icon'] ?? '')));
 		$date = intval($row['date'] ?? ($_SERVER['now'] ?? time()));
-		return [
+		$weather = [
 			'date'=>$date,
 			'datetime'=>date('Y-m-d',$date),
 			'date_label'=>function_exists('format__date_relative') ? format__date_relative($date,'date',$_SESSION['language'] ?? false) : date('d.m.',$date),
-			'temp'=>htmlspecialchars((string) ($row['temp'] ?? 0),ENT_QUOTES,'UTF-8'),
-			'temp_now'=>htmlspecialchars((string) ($row['temp_now'] ?? ($row['temp'] ?? 0)),ENT_QUOTES,'UTF-8'),
-			'temp_min'=>htmlspecialchars((string) ($row['temp_min'] ?? 0),ENT_QUOTES,'UTF-8'),
-			'temp_max'=>htmlspecialchars((string) ($row['temp_max'] ?? 0),ENT_QUOTES,'UTF-8'),
+			'temp'=>htmlspecialchars((string) ($row['temp'] ?? '—'),ENT_QUOTES,'UTF-8'),
+			'temp_now'=>htmlspecialchars((string) ($row['temp_now'] ?? '—'),ENT_QUOTES,'UTF-8'),
+			'temp_min'=>htmlspecialchars((string) ($row['temp_min'] ?? '—'),ENT_QUOTES,'UTF-8'),
+			'temp_max'=>htmlspecialchars((string) ($row['temp_max'] ?? '—'),ENT_QUOTES,'UTF-8'),
 			'temp_unit'=>$units['temp'],
 			'wind_unit'=>$units['wind'],
-			'wind_speed'=>htmlspecialchars((string) ($row['wind_speed'] ?? 0),ENT_QUOTES,'UTF-8'),
-			'humidity'=>htmlspecialchars((string) ($row['humidity'] ?? 0),ENT_QUOTES,'UTF-8'),
-			'pop'=>htmlspecialchars((string) ($row['pop'] ?? 0),ENT_QUOTES,'UTF-8'),
+			'wind_speed'=>htmlspecialchars((string) ($row['wind_speed'] ?? '—'),ENT_QUOTES,'UTF-8'),
+			'humidity'=>htmlspecialchars((string) ($row['humidity'] ?? '—'),ENT_QUOTES,'UTF-8'),
+			'pop'=>htmlspecialchars((string) ($row['pop'] ?? '—'),ENT_QUOTES,'UTF-8'),
 			'snow'=>htmlspecialchars((string) ($row['snow'] ?? 0),ENT_QUOTES,'UTF-8'),
 			'description'=>htmlspecialchars(trim((string) ($row['description'] ?? '')),ENT_QUOTES,'UTF-8'),
 			'icon'=>$icon,
@@ -28,10 +28,12 @@ if (!function_exists('weather__widget_row')) {
 			'has_icon'=>$icon !== '' ? 1 : 0,
 			'is_current'=>$current ? 1 : 0,
 			'render_description'=>$options['show_description'],
-			'render_wind'=>$options['show_wind'],
-			'render_humidity'=>$options['show_humidity'],
+			'render_wind'=>$options['show_wind'] && isset($row['wind_speed']) ? 1 : 0,
+			'render_humidity'=>$options['show_humidity'] && isset($row['humidity']) ? 1 : 0,
 			'render_rain_probability'=>$options['show_rain_probability']
 		];
+		foreach (['temp'=>$units['temp'],'temp_now'=>$units['temp'],'temp_min'=>$units['temp'],'temp_max'=>$units['temp'],'wind_speed'=>' '.$units['wind'],'humidity'=>'%','pop'=>'%'] as $key => $unit) $weather[$key.'_label'] = isset($row[$key]) ? $weather[$key].$unit : htmlspecialchars(language__get($_SESSION['language'] ?? $GLOBALS['site']['default_language'],'_weather_card_unavailable'),ENT_QUOTES,'UTF-8');
+		return $weather;
 	}
 }
 
