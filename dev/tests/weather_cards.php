@@ -144,6 +144,11 @@ namespace {
 		$weather_cards['unsafe'] = $weather_cards['node'];
 		$weather_cards['unsafe']['forecast']['current']['icon'] = '../../private';
 		weatherCheck(count(\weather\Card::attachments($weather_cards['unsafe'])) === 1,'Untrusted icon name resolved a file');
+		$weather_cards['missing_icon']=$weather_cards['node'];
+		$weather_cards['missing_icon']['forecast']['daily'][0]['icon']='missing';
+		$weather_cards['missing_icon']['forecast']['daily'][0]['description']='Heavy snow <script>';
+		weatherCheck(str_contains(\weather\Card::html($weather_cards['missing_icon'],'en'),'Heavy snow &lt;script&gt;'),'Missing weather icon removes its condition or injects markup');
+
 		mkdir('plugins/fiCMS-weather/assets/images/weather/custom',0700);
 		symlink('../01d.png','plugins/fiCMS-weather/assets/images/weather/custom/01d.png');
 		weatherCheck(count(\weather\Card::attachments($weather_cards['node'])) === 1,'Symlinked custom icon was attached');
