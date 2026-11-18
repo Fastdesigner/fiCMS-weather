@@ -1,7 +1,7 @@
 <?php
 
 namespace ficms {
-	final class Client { public function getCredentials(): array { return ['token'=>'weather-card-fixture-secret']; } }
+	final class Client { public static string $token='weather-card-fixture-secret'; public function getCredentials(): array { return ['token'=>self::$token]; } }
 	final class Http {
 		public static int $calls = 0;
 		public static function request(string $url, array $options): array { self::$calls++; return ['code'=>503,'body'=>'','error'=>'provider_unavailable']; }
@@ -60,6 +60,14 @@ namespace {
 		unset($weather_cards['canonical']['card']);
 		$weather_cards['node'] = \weather\Card::parse('Weather',$weather_cards['result']['card']['reference'],'en',$weather_cards['context']);
 		weatherCheck($weather_cards['node']['forecast'] === $weather_cards['canonical'],'Snapshot differs from canonical get result');
+        $weather_cards['bad_json']=$weather_cards['canonical'];$weather_cards['bad_json']['location']['label']="\xFF";
+        weatherCheck(\weather\Card::prepare($weather_cards['bad_json'],$weather_cards['context']) === $weather_cards['bad_json'],'Snapshot JSON failure lost the readable forecast');
+        $weather_cards['key']=new \ReflectionProperty(\ficms\RichResponse\Snapshots::class,'key');
+        \ficms\Client::$token='';$weather_cards['key']->setValue(null,null);
+        weatherCheck(!isset(weatherGet($weather_cards['context'])['card']),'Missing snapshot secret broke get(weather) or issued an unusable card');
+        weatherCheck(\weather\Card::parse('Weather',$weather_cards['result']['card']['reference'],'en') === [],'Snapshot read failure escaped into transcript rendering');
+        \ficms\Client::$token='weather-card-fixture-secret';$weather_cards['key']->setValue(null,null);
+
 		weatherCheck($weather_cards['node']['forecast']['current']['temperature'] === 54 && $weather_cards['node']['forecast']['measurements']['temperature'] === '°F','Imperial forecast lost units or converted twice');
 		weatherCheck($weather_cards['node']['forecast']['current']['icon'] === '01d' && $weather_cards['node']['forecast']['location']['timezone'] === 'Europe/Berlin','Canonical timezone or local icon code lost');
 		$weather_cards['other'] = clone $weather_cards['context'];

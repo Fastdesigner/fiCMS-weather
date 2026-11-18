@@ -15,17 +15,19 @@ final class Card {
 
 	public static function prepare(array $forecast, \mcp\Context $context): array {
 		if (($context->task['name'] ?? '') !== 'chat' || ($context->task['id'] ?? '') !== $context->task_id || !in_array($context->kind(),['system','master'],true) || !isset($forecast['current'],$forecast['daily']) || isset($forecast['writable'])) return $forecast;
-		$forecast['card'] = [
-			'reference'=>\ficms\RichResponse\Snapshots::issue('weather',$forecast,$context),
-			'usage'=>'Use [Short title](weather:reference) to show this exact forecast. Keep stale status, warnings and alerts.'
-		];
+		try {
+			$forecast['card'] = ['reference'=>\ficms\RichResponse\Snapshots::issue('weather',$forecast,$context)];
+		} catch (\DomainException|\RuntimeException|\JsonException) {
+			return $forecast;
+		}
+		$forecast['card']['usage'] = 'Use [Title](weather:reference) for this forecast; keep stale status and alerts.';
 		return $forecast;
 	}
 
 	public static function parse(string $title, string $reference, string $language = 'de', ?\mcp\Context $context = null): array {
 		try {
 			$forecast = \ficms\RichResponse\Snapshots::read('weather',$reference,$context);
-		} catch (\DomainException) {
+		} catch (\DomainException|\RuntimeException|\JsonException) {
 			return [];
 		}
 		return ['type'=>'weather','title'=>$title,'reference'=>$reference,'forecast'=>$forecast,'language'=>$language];
@@ -49,7 +51,7 @@ final class Card {
 			.'<tr><td colspan="4"><b>'.self::escape($weather['facts']['title']).'</b>'.($weather['facts']['location'] !== '' ? '<br>'.self::escape($weather['facts']['location']) : '').'</td></tr>'
 			.$weather['notices']
 			.'<tr><td colspan="4">'.$weather['image'].' <b>'.self::escape($weather['current']['temperature']."\u{00A0}".$weather['current']['unit']).'</b> '.self::escape(implode(', ',array_filter([$weather['current']['description'],$weather['current']['feels_like']]))).($weather['facts_html'] !== '' ? '<br>'.$weather['facts_html'] : '').'</td></tr>'
-			.($weather['rows'] !== '' ? '<tr><td></td><td></td><th align="left" scope="col">'.self::escape($weather['facts']['labels']['rain']).'</th><th align="left" scope="col">'.self::escape($weather['facts']['labels']['temperature']).'</th></tr>'.$weather['rows'] : '')
+			.($weather['rows'] !== '' ? '<tr><td></td><td></td><th align="left" scope="col">'.self::escape($weather['facts']['labels']['rain']).'</th><th align="left" scope="col">'.self::escape($node['forecast']['measurements']['temperature']).'</th></tr>'.$weather['rows'] : '')
 			.'<tr><td colspan="4"><small>'.self::escape($weather['facts']['updated']['label']).'</small></td></tr></table>';
 		return '<section class="chat-card" data-chat-rich aria-label="'.self::escape($weather['facts']['title']).'">'
 			.'<header class="chat-card__header"><strong>'.self::escape($weather['facts']['title']).'</strong>'.($weather['facts']['location'] !== '' ? '<span>'.self::escape($weather['facts']['location']).'</span>' : '').'</header>'

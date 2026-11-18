@@ -32,7 +32,7 @@ if (!function_exists('weather__widget_row')) {
 			'render_humidity'=>$options['show_humidity'] && isset($row['humidity']) ? 1 : 0,
 			'render_rain_probability'=>$options['show_rain_probability']
 		];
-		foreach (['temp'=>$units['temp'],'temp_now'=>$units['temp'],'temp_min'=>$units['temp'],'temp_max'=>$units['temp'],'wind_speed'=>' '.$units['wind'],'humidity'=>'%','pop'=>'%'] as $key => $unit) $weather[$key.'_label'] = isset($row[$key]) ? $weather[$key].$unit : htmlspecialchars(language__get($_SESSION['language'],'_weather_card_unavailable'),ENT_QUOTES,'UTF-8');
+		foreach (['temp'=>$units['temp'],'temp_now'=>$units['temp'],'temp_min'=>$units['temp'],'temp_max'=>$units['temp'],'wind_speed'=>' '.$units['wind'],'humidity'=>'%','pop'=>'%'] as $key => $unit) $weather[$key.'_label'] = isset($row[$key]) ? $weather[$key].$unit : htmlspecialchars(language__get($_SESSION['language'] ?? $GLOBALS['site']['default_language'],'_weather_card_unavailable'),ENT_QUOTES,'UTF-8');
 		return $weather;
 	}
 }

@@ -1,8 +1,8 @@
 <?php
 
 return [
-	'purpose'=>'Shows the exact current conditions, forecast and alerts returned by get(type:"weather") as a compact weather card.',
-	'syntax'=>'[Short title](weather:<card.reference returned by get(type:"weather")>)',
+	'purpose'=>'Block weather card from this exact forecast, including alerts and stale status.',
+	'syntax'=>'[Title](weather:<card.reference>)',
 	'layout'=>'block',
 	'requires'=>['get:weather'],
 	'available'=>[\weather\Card::class,'available'],
