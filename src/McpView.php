@@ -117,8 +117,9 @@ class McpView {
 			? ['temperature'=>'°F','wind_speed'=>'mph','precipitation'=>'mm','pressure'=>'hPa','probability'=>'%']
 			: ['temperature'=>'°C','wind_speed'=>'m/s','precipitation'=>'mm','pressure'=>'hPa','probability'=>'%'];
 		foreach ((array) ($forecast['daily'] ?? []) as $weather['entry']) if (is_array($weather['entry'])) $weather['daily'][] = self::row($weather['entry'],$weather['location']['timezone']);
+		$now = intval($_SERVER['now'] ?? time());
 		foreach ((array) ($forecast['alerts'] ?? []) as $weather['entry']) {
-			if (!is_array($weather['entry'])) continue;
+			if (!is_array($weather['entry']) || (!empty($weather['entry']['end']) && intval($weather['entry']['end']) <= $now)) continue;
 			$weather['alerts'][] = [
 				'event'=>(string) ($weather['entry']['event'] ?? ''),
 				'sender'=>(string) ($weather['entry']['sender'] ?? ''),

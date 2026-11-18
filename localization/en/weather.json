@@ -9,5 +9,7 @@
   "_weather_card_updated": "Updated",
   "_weather_card_stale": "Newer weather data is currently unavailable.",
   "_weather_card_warning": "The weather data may be incomplete.",
+  "_weather_card_alert_wind": "Wind warning",
+  "_weather_card_alert_weather": "Weather warning",
   "_weather_card_unavailable": "Unavailable"
 }

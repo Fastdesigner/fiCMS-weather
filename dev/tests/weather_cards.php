@@ -45,7 +45,7 @@ namespace {
 			'timezone'=>'Europe/Berlin',
 			'current'=>['dt'=>$_SERVER['now'],'temp'=>12,'wind_speed'=>3,'weather'=>[['main'=>'Clear','description'=>'Clear <script>','icon'=>'01d']]],
 			'daily'=>[['dt'=>$_SERVER['now'],'temp'=>['day'=>14,'min'=>8,'max'=>15],'pop'=>0.4,'wind_speed'=>4,'weather'=>[['main'=>'Rain','description'=>'Rain','icon'=>'10d']]]],
-			'alerts'=>[['sender_name'=>'Weather service','event'=>'Storm alert','start'=>$_SERVER['now'],'end'=>$_SERVER['now']+3600,'description'=>'Stay indoors <script>','tags'=>['wind']]]
+			'alerts'=>[['sender_name'=>'Weather service','event'=>'Storm alert','start'=>$_SERVER['now'],'end'=>$_SERVER['now']+3600,'description'=>'Stay indoors <script>','tags'=>['wind']],['event'=>'Expired advisory','end'=>$_SERVER['now'],'tags'=>[]]]
 		],['id'=>'hotel','label'=>'Hotel <script>','lat'=>51,'lon'=>6]);
 		\ficms\Files::writeJsonAtomic($weather_cards['weather']->cacheFile('hotel'),['version'=>2,'updated_at'=>$_SERVER['now'],'data'=>$weather_cards['forecast']]);
 		$weather_cards['context'] = new \mcp\Context();
@@ -55,6 +55,7 @@ namespace {
 		$weather_cards['context']->args = ['id'=>'default','data'=>['days'=>1,'units'=>'imperial']];
 		weatherCheck(\weather\Card::available($weather_cards['context']) && \ficms\Http::$calls === 0,'Availability calls provider or hides usable weather');
 		$weather_cards['result'] = weatherGet($weather_cards['context']);
+		weatherCheck(count($weather_cards['result']['alerts']) === 1,'An expired alert reached the tool or snapshot');
 		weatherCheck(isset($weather_cards['result']['card']['reference']) && \ficms\Http::$calls === 0,'Fresh cached forecast made a provider call or lacks reference');
 		$weather_cards['canonical'] = $weather_cards['result'];
 		unset($weather_cards['canonical']['card']);
@@ -134,12 +135,16 @@ namespace {
 			foreach ([false,true] as $email) {
 				$weather_cards['html'] = \weather\Card::html($node,'en',$email);
 				weatherCheck(!str_contains($weather_cards['html'],'<script>') && !str_contains($weather_cards['html'],'openweathermap.org'),'Weather render injects content or fetches provider icons');
-				weatherCheck(str_contains($weather_cards['html'],'Storm alert') && str_contains($weather_cards['html'],'Europe/Berlin') && str_contains($weather_cards['html'],'°F'),'Card drops alerts, timezone or units');
+				weatherCheck(str_contains($weather_cards['html'],'⚠ Wind warning') && str_contains($weather_cards['html'],'Europe/Berlin') && str_contains($weather_cards['html'],'°F'),'Card drops alerts, timezone or units');
 				weatherCheck(str_contains($weather_cards['html'],$email ? 'cid:' : 'plugins/fiCMS-weather/assets/'),'Card does not use local icons for channel');
 			}
 			weatherCheck(count(\weather\Card::attachments($node)) === 2,'Local weather icon attachments missing or duplicated');
-			weatherCheck(str_contains(\weather\Card::plain($node),'Storm alert'),'Plain card lost alerts');
+			weatherCheck(str_contains(\weather\Card::plain($node),'⚠ Wind warning'),'Plain card lost alerts');
 		}
+		$weather_cards['warning_node'] = $weather_cards['node'];
+		$weather_cards['warning_node']['forecast']['alerts'][] = ['event'=>'gale-force gusts','tags'=>[]];
+		$weather_cards['warning_html'] = \weather\Card::html($weather_cards['warning_node'],'de');
+		weatherCheck(substr_count($weather_cards['warning_html'],'⚠ Windwarnung') === 1 && !str_contains($weather_cards['warning_html'],'gale-force gusts') && !str_contains($weather_cards['warning_html'],'Stay indoors'),'German wind alert exposed or repeated provider prose');
 		weatherCheck(\ficms\Http::$calls === 1,'Parsing or delivery called weather provider');
 		$weather_cards['legacy'] = $weather_cards['forecast'];
 		$weather_cards['legacy']['current']['humidity'] = 0;
@@ -173,7 +178,7 @@ namespace {
 		weatherCheck(\weather\Card::parse('Expired',$weather_cards['simulated']['card']['reference']) === [],'Ended simulation retained weather snapshot');
 		$GLOBALS['site']['api_weather_key'] = '';
 		weatherCheck(!\weather\Card::available() && \ficms\Http::$calls === 2,'Unavailable service advertised weather cards or called provider');
-		weatherCheck(str_contains(\weather\Card::html($weather_cards['node'],'en',true),'Storm alert'),'Inactive service removed historical weather facts');
+		weatherCheck(str_contains(\weather\Card::html($weather_cards['node'],'en',true),'⚠ Wind warning'),'Inactive service removed historical weather facts');
 	} finally {
 		\ficms\Files::removeDirectory('plugins',true,true);
 		\ficms\Files::removeDirectory('system',true,true);

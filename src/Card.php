@@ -36,8 +36,8 @@ final class Card {
 	public static function html(array $node, string $language = 'de', bool $email = false): string {
 		$weather = ['facts'=>self::facts($node,$language),'icons'=>self::icons($node),'notices'=>'','facts_html'=>'','rows'=>''];
 		foreach ($weather['facts']['notices'] as $notice) $weather['notices'] .= $email
-			? '<tr><td colspan="4">'.($notice['title'] !== '' ? '<b>'.self::escape($notice['title']).'</b><br>' : '').($notice['period'] !== '' ? self::escape($notice['period']).'<br>' : '').self::escape($notice['text']).($notice['source'] !== '' ? '<br><small>'.self::escape($notice['source']).'</small>' : '').'</td></tr>'
-			: '<p class="chat-card__notice"'.($notice['title'] !== '' ? ' data-tone="warning"' : '').'>'.($notice['title'] !== '' ? '<strong>'.self::escape($notice['title']).'</strong>' : '').($notice['period'] !== '' ? '<small>'.self::escape($notice['period']).'</small>' : '').self::escape($notice['text']).($notice['source'] !== '' ? '<small>'.self::escape($notice['source']).'</small>' : '').'</p>';
+			? '<tr><td colspan="4">'.self::escape($notice['text']).'</td></tr>'
+			: '<p class="chat-card__notice"'.($notice['alert'] ? ' data-tone="warning"' : '').'>'.self::escape($notice['text']).'</p>';
 		foreach ($weather['facts']['current']['facts'] as $fact) $weather['facts_html'] .= $email ? ($weather['facts_html'] === '' ? '' : ', ').self::escape($fact['label']).' <b>'.self::escape($fact['value']).'</b>' : '<div><dt>'.self::escape($fact['label']).'</dt><dd>'.self::escape($fact['value']).'</dd></div>';
 		foreach ($weather['facts']['days'] as $day) {
 			$weather['icon'] = self::image($weather['icons'],$day['icon'],$email ? '' : $day['description'],$email ? 28 : 24,$email);
@@ -66,7 +66,7 @@ final class Card {
 		$weather = ['facts'=>self::facts($node,(string) ($node['language'] ?? 'de')),'lines'=>[]];
 		$weather['current'] = $weather['facts']['current'];
 		$weather['lines'][] = $weather['facts']['title'].($weather['facts']['location'] !== '' ? ', '.$weather['facts']['location'] : '');
-		foreach ($weather['facts']['notices'] as $notice) $weather['lines'][] = implode(', ',array_filter([$notice['title'],$notice['period'],$notice['text'],$notice['source']]));
+		foreach ($weather['facts']['notices'] as $notice) $weather['lines'][] = $notice['text'];
 		$weather['lines'][] = implode(', ',array_filter([$weather['current']['temperature']."\u{00A0}".$weather['current']['unit'],$weather['current']['description'],$weather['current']['feels_like']]));
 		$weather['facts_line'] = [];
 		foreach ($weather['current']['facts'] as $fact) $weather['facts_line'][] = $fact['label'].' '.$fact['value'];
@@ -92,13 +92,13 @@ final class Card {
 			'numbers'=>new \NumberFormatter($language,\NumberFormatter::DECIMAL)
 		];
 		$weather['numbers']->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS,1);
-		if (!empty($forecast['stale']) || !empty($forecast['warning'])) $weather['notices'][] = ['title'=>'','period'=>'','text'=>self::label($language,!empty($forecast['stale']) ? 'stale' : 'warning'),'source'=>''];
-		foreach ($forecast['alerts'] as $alert) $weather['notices'][] = [
-			'title'=>$alert['event'],
-			'period'=>implode(' – ',array_filter([self::date($alert['start'],$language,'EEEdMjmm',$weather['zone']),self::date($alert['end'],$language,'EEEdMjmm',$weather['zone'])])),
-			'text'=>$alert['description'],
-			'source'=>$alert['sender']
-		];
+		if (!empty($forecast['stale']) || !empty($forecast['warning'])) $weather['notices'][] = ['alert'=>false,'text'=>self::label($language,!empty($forecast['stale']) ? 'stale' : 'warning')];
+		$alerts = [];
+		foreach ($forecast['alerts'] as $alert) {
+			$kind = preg_match('/\b(?:wind|gusts?)\b/i',implode(' ',$alert['tags'] ?? []).' '.$alert['event']) ? 'alert_wind' : 'alert_weather';
+			$alerts[$kind] = ['alert'=>true,'text'=>'⚠ '.self::label($language,$kind)];
+		}
+		$weather['notices'] = array_merge($weather['notices'],array_values($alerts));
 		$current = $forecast['current'];
 		$weather['current'] = [
 			'icon'=>$current['icon'],
