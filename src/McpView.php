@@ -138,21 +138,22 @@ class McpView {
 			'timestamp'=>intval($row['date'] ?? 0),
 			'date'=>self::datetime(intval($row['date'] ?? 0),$timezone,$current ? 'Y-m-d H:i:s' : 'Y-m-d'),
 			'condition'=>(string) ($row['condition'] ?? ''),
+			'icon'=>(string) ($row['icon'] ?? ''),
 			'description'=>(string) ($row['description'] ?? ''),
-			'temperature'=>self::number($row['temp_now'] ?? $row['temp'] ?? 0),
-			'temperature_min'=>self::number($row['temp_min'] ?? 0),
-			'temperature_max'=>self::number($row['temp_max'] ?? 0),
-			'feels_like'=>self::number($row['feels_like'] ?? 0),
-			'precipitation_probability'=>self::number($row['pop'] ?? 0),
-			'rain'=>self::number($row['rain'] ?? 0),
-			'snow'=>self::number($row['snow'] ?? 0),
-			'humidity'=>self::number($row['humidity'] ?? 0),
-			'pressure'=>self::number($row['pressure'] ?? 0),
-			'clouds'=>self::number($row['clouds'] ?? 0),
-			'wind_speed'=>self::number($row['wind_speed'] ?? 0),
-			'wind_gust'=>self::number($row['wind_gust'] ?? 0),
-			'wind_direction'=>self::number($row['wind_deg'] ?? 0),
-			'uvi'=>self::number($row['uvi'] ?? 0)
+			'temperature'=>self::number($row['temp_now'] ?? null),
+			'temperature_min'=>self::number($row['temp_min'] ?? null),
+			'temperature_max'=>self::number($row['temp_max'] ?? null),
+			'feels_like'=>self::number($row['feels_like'] ?? null),
+			'precipitation_probability'=>self::number($row['pop'] ?? null),
+			'rain'=>self::number($row['rain'] ?? null),
+			'snow'=>self::number($row['snow'] ?? null),
+			'humidity'=>self::number($row['humidity'] ?? null),
+			'pressure'=>self::number($row['pressure'] ?? null),
+			'clouds'=>self::number($row['clouds'] ?? null),
+			'wind_speed'=>self::number($row['wind_speed'] ?? null),
+			'wind_gust'=>self::number($row['wind_gust'] ?? null),
+			'wind_direction'=>self::number($row['wind_deg'] ?? null),
+			'uvi'=>self::number($row['uvi'] ?? null)
 		];
 		if (!$current) {
 			$weather['sunrise'] = self::datetime(intval($row['sunrise'] ?? 0),$timezone);
@@ -168,8 +169,8 @@ class McpView {
 		return $weather->format($format);
 	}
 
-	private static function number(mixed $value): int|float {
-		if (!is_numeric($value)) return 0;
+	private static function number(mixed $value): int|float|null {
+		if (!is_numeric($value)) return null;
 		$weather = floatval($value);
 		return floor($weather) === $weather ? intval($weather) : $weather;
 	}

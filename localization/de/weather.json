@@ -1,3 +1,13 @@
 {
-  "_weather": "Wetter"
+  "_weather": "Wetter",
+  "_weather_card_rain": "Regen",
+  "_weather_card_temperature": "Temperatur",
+  "_weather_card_wind": "Wind",
+  "_weather_card_gust": "Böen",
+  "_weather_card_humidity": "Luftfeuchte",
+  "_weather_card_feels": "gefühlt",
+  "_weather_card_updated": "Stand",
+  "_weather_card_stale": "Neuere Wetterdaten sind gerade nicht abrufbar.",
+  "_weather_card_warning": "Die Wetterdaten sind möglicherweise unvollständig.",
+  "_weather_card_unavailable": "Nicht verfügbar"
 }

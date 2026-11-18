@@ -1,3 +1,13 @@
 {
-  "_weather": "Meteo"
+  "_weather": "Meteo",
+  "_weather_card_rain": "Pioggia",
+  "_weather_card_temperature": "Temperatura",
+  "_weather_card_wind": "Vento",
+  "_weather_card_gust": "Raffiche",
+  "_weather_card_humidity": "Umidità",
+  "_weather_card_feels": "percepita",
+  "_weather_card_updated": "Aggiornato",
+  "_weather_card_stale": "Al momento non sono disponibili dati meteo più recenti.",
+  "_weather_card_warning": "I dati meteo potrebbero essere incompleti.",
+  "_weather_card_unavailable": "Non disponibile"
 }

@@ -42,16 +42,22 @@ class Weather {
 		return $this->iconCodes;
 	}
 
+	public function iconFile(string $icon, bool $raster = false): string {
+		if (!in_array($icon,$this->iconCodes,true)) return '';
+		foreach (['custom/',''] as $folder) {
+			foreach ($raster ? ['png','webp','gif','jpg','jpeg'] : ['png','webp','svg','gif','jpg','jpeg'] as $extension) {
+				if (is_file($this->basePath.'/assets/images/weather/'.$folder.$icon.'.'.$extension)) return $this->basePath.'/assets/images/weather/'.$folder.$icon.'.'.$extension;
+			}
+		}
+		return '';
+	}
+
 	public function iconUrl(string $icon = ''): string {
 		$icon = preg_replace('/[^a-z0-9]/i','',trim($icon));
 		if ($icon === '') $icon = '01d';
-		foreach (['custom/',''] as $folder) {
-			foreach (['png','webp','svg','gif','jpg','jpeg'] as $extension) {
-				if (!is_file($this->basePath.'/assets/images/weather/'.$folder.$icon.'.'.$extension)) continue;
-				return (defined('PAGEPATH') ? PAGEPATH.'/' : '').'system/plugins/'.basename($this->basePath).'/assets/images/weather/'.$folder.$icon.'.'.$extension;
-			}
-		}
-		return $icon !== '' ? 'https://openweathermap.org/img/wn/'.$icon.'@2x.png' : '';
+		$file = $this->iconFile($icon);
+		if ($file !== '') return (defined('PAGEPATH') ? PAGEPATH.'/' : '').'system/plugins/'.basename($this->basePath).'/assets/images/weather/'.substr($file,strlen($this->basePath.'/assets/images/weather/'));
+		return 'https://openweathermap.org/img/wn/'.$icon.'@2x.png';
 	}
 
 	public function preview(string $locationId): array {
