@@ -3,24 +3,22 @@
 namespace weather;
 
 class OpenWeather {
-	private string $endpoint = 'https://api.openweathermap.org/data/3.0/onecall';
+	public const ENDPOINT = 'https://api.openweathermap.org/data/3.0';
 
 	public function fetch(array $location = [], array $options = []): array {
-		$key = trim((string) ($options['key'] ?? ''));
-		if ($key === '') return ['result'=>false,'code'=>0,'error'=>'api_key_missing','raw'=>[],'data'=>[]];
+		$transport = $options['transport'] ?? [];
+		if (!$transport) return ['result'=>false,'code'=>0,'error'=>'api_key_missing','raw'=>[],'data'=>[]];
 
 		$query = [
 			'lat'=>$this->coordinate($location['lat'] ?? null,-90,90),
 			'lon'=>$this->coordinate($location['lon'] ?? null,-180,180),
 			'units'=>$this->units($options['units'] ?? 'metric'),
 			'lang'=>$this->language($options['language'] ?? ($_SESSION['language'] ?? 'de')),
-			'exclude'=>'minutely,hourly',
-			'appid'=>$key
-		];
+			'exclude'=>'minutely,hourly'
+		] + $transport['query'];
 		if ($query['lat'] === null || $query['lon'] === null) return ['result'=>false,'code'=>0,'error'=>'coordinates_missing','raw'=>[],'data'=>[]];
 
-		$url = $this->endpoint.'?'.http_build_query($query,'','&',PHP_QUERY_RFC3986);
-		$response = $this->request($url);
+		$response = $this->request($transport['url'].'/onecall?'.http_build_query($query,'','&',PHP_QUERY_RFC3986),$transport['headers']);
 		$raw = $response['body'] !== '' ? json_decode($response['body'],true) : [];
 		if (!is_array($raw)) $raw = [];
 		if ($response['error'] !== '') return ['result'=>false,'code'=>$response['code'],'error'=>$response['error'],'raw'=>$raw,'data'=>[]];
@@ -102,8 +100,8 @@ class OpenWeather {
 		];
 	}
 
-	private function request(string $url): array {
-		$result = \ficms\Http::request($url,['method'=>'GET','timeout'=>12]);
+	private function request(string $url, array $headers): array {
+		$result = \ficms\Http::request($url,['method'=>'GET','timeout'=>12,'headers'=>$headers]);
 		return ['code'=>intval($result['code'] ?? 0),'body'=>(string) ($result['body'] ?? ''),'error'=>(string) ($result['error'] ?? '')];
 	}
 

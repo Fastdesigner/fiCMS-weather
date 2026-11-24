@@ -104,7 +104,8 @@ class Weather {
 			'licensed'=>!empty($config['licensed']) ? 1 : 0,
 			'userkey'=>!empty($config['userkey']) ? 1 : 0,
 			'needskey'=>!empty($config['needskey']) ? 1 : 0,
-			'has_key'=>trim((string) ($config['key'] ?? '')) !== '' ? 1 : 0,
+			// Access exists with an own key or through the API relay of a booked service.
+			'has_key'=>$this->transport($config) !== [] ? 1 : 0,
 			'paid'=>intval($config['paid'] ?? 0),
 			'ordername'=>trim((string) ($config['ordername'] ?? 'weather'))
 		];
@@ -266,7 +267,7 @@ class Weather {
 
 		$service = $this->serviceConfig();
 		$provider = new OpenWeather();
-		$result = $provider->fetch($location,['key'=>trim((string) ($service['key'] ?? '')),'units'=>'metric','language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
+		$result = $provider->fetch($location,['transport'=>$this->transport($service),'units'=>'metric','language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
 		if (!empty($result['result']) && is_array($result['data'] ?? null)) {
 			$this->writeCache($location['id'],$result);
 			return $this->limitForecast($result['data'],$location,$options,$config);
@@ -281,9 +282,8 @@ class Weather {
 		$status = $this->serviceStatus();
 		if ($status['active'] !== 1 || $status['has_key'] !== 1) return $this->finishLocationSync($location,['result'=>false,'code'=>0,'error'=>'service_inactive','data'=>[]]);
 		$service = $this->serviceConfig();
-		$key = trim((string) ($service['key'] ?? ''));
 		$provider = new OpenWeather();
-		$result = $provider->fetch($location,['key'=>$key,'units'=>'metric','language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
+		$result = $provider->fetch($location,['transport'=>$this->transport($service),'units'=>'metric','language'=>$_SESSION['language'] ?? ($GLOBALS['user']['language'] ?? 'de')]);
 		return $this->finishLocationSync($location,$result);
 	}
 
@@ -355,6 +355,14 @@ class Weather {
 		$result = true;
 		foreach (glob($this->basePath.'/assets/images/weather/custom/'.$icon.'.{png,webp,svg,gif,jpg,jpeg}',GLOB_BRACE) ?: [] as $file) if (!\ficms\Files::delete($file,false)) $result = false;
 		return $result;
+	}
+
+	// A delivered or own key goes direct; a booked service without one goes through the API relay.
+	private function transport(array $service): array {
+		$key = trim((string) ($service['key'] ?? ''));
+		if ($key !== '') return ['url'=>OpenWeather::ENDPOINT,'headers'=>[],'query'=>['appid'=>$key]];
+		$relay = (new \ficms\Client())->relay('openweather',$service);
+		return $relay ? $relay + ['query'=>[]] : [];
 	}
 
 	private function serviceConfig(): array {
