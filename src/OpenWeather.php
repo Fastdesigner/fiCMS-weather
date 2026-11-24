@@ -18,7 +18,7 @@ class OpenWeather {
 		] + $transport['query'];
 		if ($query['lat'] === null || $query['lon'] === null) return ['result'=>false,'code'=>0,'error'=>'coordinates_missing','raw'=>[],'data'=>[]];
 
-		$response = $this->request($transport['url'].'/onecall?'.http_build_query($query,'','&',PHP_QUERY_RFC3986),$transport['headers']);
+		$response = $this->request($transport['url'].'/onecall?'.http_build_query($query,'','&',PHP_QUERY_RFC3986),['headers'=>$transport['headers']] + $transport['options']);
 		$raw = $response['body'] !== '' ? json_decode($response['body'],true) : [];
 		if (!is_array($raw)) $raw = [];
 		if ($response['error'] !== '') return ['result'=>false,'code'=>$response['code'],'error'=>$response['error'],'raw'=>$raw,'data'=>[]];
@@ -100,8 +100,8 @@ class OpenWeather {
 		];
 	}
 
-	private function request(string $url, array $headers): array {
-		$result = \ficms\Http::request($url,['method'=>'GET','timeout'=>12,'headers'=>$headers]);
+	private function request(string $url, array $options): array {
+		$result = \ficms\Http::request($url,['method'=>'GET','timeout'=>12] + $options);
 		return ['code'=>intval($result['code'] ?? 0),'body'=>(string) ($result['body'] ?? ''),'error'=>(string) ($result['error'] ?? '')];
 	}
 

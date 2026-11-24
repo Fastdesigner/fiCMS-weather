@@ -360,7 +360,7 @@ class Weather {
 	// A delivered or own key goes direct; a booked service without one goes through the API relay.
 	private function transport(array $service): array {
 		$key = trim((string) ($service['key'] ?? ''));
-		if ($key !== '') return ['url'=>OpenWeather::ENDPOINT,'headers'=>[],'query'=>['appid'=>$key]];
+		if ($key !== '') return ['url'=>OpenWeather::ENDPOINT,'headers'=>[],'options'=>[],'query'=>['appid'=>$key]];
 		$relay = (new \ficms\Client())->relay('openweather',$service);
 		return $relay ? $relay + ['query'=>[]] : [];
 	}

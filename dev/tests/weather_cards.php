@@ -1,7 +1,7 @@
 <?php
 
 namespace ficms {
-	final class Client { public static string $token='weather-card-fixture-secret'; public function getCredentials(): array { return ['token'=>self::$token]; } public function relay(string $provider, array $service): array { return ($service['key_source'] ?? '') === 'system' && ($service['key'] ?? '') === '' ? ['url'=>'https://api.ficms.de/v1/ai/relay/'.$provider,'headers'=>['X-Ficms-Task: weather']] : []; } }
+	final class Client { public static string $token='weather-card-fixture-secret'; public function getCredentials(): array { return ['token'=>self::$token]; } public function relay(string $provider, array $service): array { return ($service['key_source'] ?? '') === 'system' && ($service['key'] ?? '') === '' ? ['url'=>'https://api.ficms.de/v1/ai/relay/'.$provider,'headers'=>['X-Ficms-Task: weather'],'options'=>['verify'=>true,'follow'=>false]] : []; } }
 	final class Http {
 		public static int $calls = 0;
 		public static function request(string $url, array $options): array { self::$calls++; return ['code'=>503,'body'=>'','error'=>'provider_unavailable']; }
